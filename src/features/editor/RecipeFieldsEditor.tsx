@@ -16,6 +16,7 @@ import {
 } from "@/domain/recipe";
 import { CATEGORY_OPTIONS } from "@/lib/presentation";
 import { prepareRecipeImage } from "@/lib/image-processing";
+import { UnitSelect } from "./UnitSelect";
 
 function nextId(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -221,15 +222,10 @@ export function RecipeFieldsEditor({
                   })}
                 />
               </label>
-              <label className="field">
-                <span>単位</span>
-                <input
-                  value={ingredient.unit}
-                  maxLength={30}
-                  placeholder="g、ml、大さじ"
-                  onChange={(event) => updateIngredient(index, { unit: event.target.value })}
-                />
-              </label>
+              <UnitSelect
+                value={ingredient.unit}
+                onChange={(unit) => updateIngredient(index, { unit })}
+              />
             </div>
             <label className="field">
               <span>補足</span>
@@ -284,15 +280,10 @@ export function RecipeFieldsEditor({
                   })}
                 />
               </label>
-              <label className="field">
-                <span>単位</span>
-                <input
-                  value={seasoning.unit}
-                  maxLength={30}
-                  placeholder="g、ml、大さじ"
-                  onChange={(event) => updateSeasoning(index, { unit: event.target.value })}
-                />
-              </label>
+              <UnitSelect
+                value={seasoning.unit}
+                onChange={(unit) => updateSeasoning(index, { unit })}
+              />
             </div>
             <label className="field">
               <span>補足</span>

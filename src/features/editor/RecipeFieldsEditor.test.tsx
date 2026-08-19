@@ -78,5 +78,11 @@ describe("RecipeFieldsEditor ingredients and seasonings", () => {
     const amounts = screen.getAllByLabelText("分量 *", { exact: true });
     fireEvent.change(amounts[1], { target: { value: "適量" } });
     expect(amounts[1]).toHaveValue("適量");
+    const unitSelects = screen.getAllByRole("combobox", { name: "単位" });
+    expect(unitSelects).toHaveLength(2);
+    fireEvent.change(unitSelects[0], { target: { value: "個" } });
+    fireEvent.change(unitSelects[1], { target: { value: "大さじ" } });
+    expect(unitSelects[0]).toHaveValue("個");
+    expect(unitSelects[1]).toHaveValue("大さじ");
   });
 });

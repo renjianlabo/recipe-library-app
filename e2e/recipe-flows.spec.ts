@@ -103,7 +103,7 @@ test("手動作成から保存・一覧・詳細・編集まで完了する", as
   const seasoning = page.locator("article.editor-item").filter({ hasText: "調味料 1" });
   await seasoning.getByLabel("調味料名 *", { exact: true }).fill("しょうゆ");
   await seasoning.getByLabel("分量 *", { exact: true }).fill("1/2");
-  await seasoning.getByLabel("単位", { exact: true }).fill("大さじ");
+  await seasoning.getByLabel("単位", { exact: true }).selectOption("大さじ");
   await seasoning.getByLabel("補足", { exact: true }).fill("仕上げ用");
   await page.getByLabel("工程本文 *", { exact: true }).fill("卵を混ぜて焼く。");
   await page.getByRole("checkbox", { name: "卵" }).check();
