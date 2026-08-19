@@ -6,7 +6,7 @@ const rawDeploymentId =
   process.env.VERCEL_DEPLOYMENT_ID ??
   process.env.npm_package_version ??
   "local";
-const deploymentId = rawDeploymentId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 100) || "local";
+const deploymentId = rawDeploymentId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 32) || "local";
 
 const contentSecurityPolicy = [
   "default-src 'self'",
