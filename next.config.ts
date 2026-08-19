@@ -2,8 +2,8 @@ import type { NextConfig } from "next";
 
 const rawDeploymentId =
   process.env.NEXT_DEPLOYMENT_ID ??
-  process.env.VERCEL_GIT_COMMIT_SHA ??
   process.env.VERCEL_DEPLOYMENT_ID ??
+  process.env.VERCEL_GIT_COMMIT_SHA ??
   process.env.npm_package_version ??
   "local";
 const deploymentId = rawDeploymentId.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 32) || "local";
