@@ -1,0 +1,356 @@
+{
+  "generatedAt": "2026-07-17T21:58:15.073Z",
+  "sourceFoodCount": 2538,
+  "representativeFoodCount": 2108,
+  "searchableRepresentativeCount": 2082,
+  "directMealSearchCount": 1491,
+  "hiddenFromDirectMealSearchCount": 591,
+  "hiddenSourceFoodCount": 423,
+  "seasonalAverageGroups": [],
+  "varietyAverageGroups": [
+    {
+      "displayName": "オレンジ",
+      "sourceFoodCodes": [
+        "07040",
+        "07041"
+      ],
+      "sourceFoodNames": [
+        "(かんきつ類) オレンジ ネーブル 砂じょう 生",
+        "(かんきつ類) オレンジ バレンシア 米国産 砂じょう 生"
+      ]
+    },
+    {
+      "displayName": "キウイフルーツ",
+      "sourceFoodCodes": [
+        "07054",
+        "07168"
+      ],
+      "sourceFoodNames": [
+        "キウイフルーツ 緑肉種 生",
+        "キウイフルーツ 黄肉種 生"
+      ]
+    },
+    {
+      "displayName": "グレープフルーツ",
+      "sourceFoodCodes": [
+        "07062",
+        "07164"
+      ],
+      "sourceFoodNames": [
+        "(かんきつ類) グレープフルーツ 白肉種 砂じょう 生",
+        "(かんきつ類) グレープフルーツ 紅肉種 砂じょう 生"
+      ]
+    },
+    {
+      "displayName": "すいか",
+      "sourceFoodCodes": [
+        "07077",
+        "07171"
+      ],
+      "sourceFoodNames": [
+        "すいか 赤肉種 生",
+        "すいか 黄肉種 生"
+      ]
+    },
+    {
+      "displayName": "もも",
+      "sourceFoodCodes": [
+        "07136",
+        "07184"
+      ],
+      "sourceFoodNames": [
+        "(もも類) もも 白肉種 生",
+        "(もも類) もも 黄肉種 生"
+      ]
+    },
+    {
+      "displayName": "グァバ",
+      "sourceFoodCodes": [
+        "07057",
+        "07169"
+      ],
+      "sourceFoodNames": [
+        "グァバ 赤肉種 生",
+        "グァバ 白肉種 生"
+      ]
+    },
+    {
+      "displayName": "まくわうり",
+      "sourceFoodCodes": [
+        "07130",
+        "07173"
+      ],
+      "sourceFoodNames": [
+        "まくわうり 黄肉種 生",
+        "まくわうり 白肉種 生"
+      ]
+    }
+  ],
+  "varietyAverageGroupCount": 7,
+  "ambiguousUnmergedGroups": [
+    {
+      "group": "さけ・ます類",
+      "reason": "魚種・養殖方法・皮の有無による差を誤って平均しないため個別保持"
+    },
+    {
+      "group": "りんご類",
+      "reason": "品種名と加工・可食部の自動分離に確信が持てないため個別保持"
+    },
+    {
+      "group": "牛肉・豚肉",
+      "reason": "部位・脂身・輸入区分の栄養差が大きいため個別保持"
+    },
+    {
+      "group": "産地違い",
+      "reason": "産地だけの違いは品種差とみなさず個別保持"
+    },
+    {
+      "group": "施設栽培・露地栽培",
+      "reason": "栽培方法による違いは品種平均せず個別保持"
+    },
+    {
+      "group": "オレンジ: (かんきつ類) オレンジ 福原オレンジ 砂じょう 生",
+      "reason": "明示された安全な品種組み合わせではないため個別保持"
+    },
+    {
+      "group": "もも: (すもも類) にほんすもも 生",
+      "reason": "明示された安全な品種組み合わせではないため個別保持"
+    },
+    {
+      "group": "もも: (すもも類) プルーン 生",
+      "reason": "明示された安全な品種組み合わせではないため個別保持"
+    },
+    {
+      "group": "もも: (もも類) ネクタリン 生",
+      "reason": "明示された安全な品種組み合わせではないため個別保持"
+    },
+    {
+      "group": "もも: やまもも 生",
+      "reason": "明示された安全な品種組み合わせではないため個別保持"
+    }
+  ],
+  "mergeRejectionCounts": {
+    "foodGroupDifference": 0,
+    "generalNameDifference": 0,
+    "partDifference": 16,
+    "stateDifference": 2,
+    "processingDifference": 0,
+    "meatCutDifference": 0,
+    "skinDifference": 0,
+    "fatConditionDifference": 0,
+    "formDifference": 0,
+    "cultivationMethodDifference": 0,
+    "originDifference": 0,
+    "originOnlyDifference": 0,
+    "unlistedOrAmbiguousVariety": 5,
+    "missingSource": 0
+  },
+  "varietyMergeRejections": [
+    {
+      "group": "オレンジ",
+      "foodCode": "07042",
+      "foodName": "(かんきつ類) オレンジ バレンシア 果実飲料 ストレートジュース",
+      "reason": "partDifference"
+    },
+    {
+      "group": "オレンジ",
+      "foodCode": "07043",
+      "foodName": "(かんきつ類) オレンジ バレンシア 果実飲料 濃縮還元ジュース",
+      "reason": "partDifference"
+    },
+    {
+      "group": "オレンジ",
+      "foodCode": "07044",
+      "foodName": "(かんきつ類) オレンジ バレンシア 果実飲料 50%果汁入り飲料",
+      "reason": "partDifference"
+    },
+    {
+      "group": "オレンジ",
+      "foodCode": "07045",
+      "foodName": "(かんきつ類) オレンジ バレンシア 果実飲料 30%果汁入り飲料",
+      "reason": "partDifference"
+    },
+    {
+      "group": "オレンジ",
+      "foodCode": "07046",
+      "foodName": "(かんきつ類) オレンジ バレンシア マーマレード 高糖度",
+      "reason": "partDifference"
+    },
+    {
+      "group": "オレンジ",
+      "foodCode": "07047",
+      "foodName": "(かんきつ類) オレンジ バレンシア マーマレード 低糖度",
+      "reason": "partDifference"
+    },
+    {
+      "group": "オレンジ",
+      "foodCode": "07161",
+      "foodName": "(かんきつ類) オレンジ 福原オレンジ 砂じょう 生",
+      "reason": "unlistedOrAmbiguousVariety"
+    },
+    {
+      "group": "グレープフルーツ",
+      "foodCode": "07063",
+      "foodName": "(かんきつ類) グレープフルーツ 果実飲料 ストレートジュース",
+      "reason": "partDifference"
+    },
+    {
+      "group": "グレープフルーツ",
+      "foodCode": "07064",
+      "foodName": "(かんきつ類) グレープフルーツ 果実飲料 濃縮還元ジュース",
+      "reason": "partDifference"
+    },
+    {
+      "group": "グレープフルーツ",
+      "foodCode": "07065",
+      "foodName": "(かんきつ類) グレープフルーツ 果実飲料 50%果汁入り飲料",
+      "reason": "partDifference"
+    },
+    {
+      "group": "グレープフルーツ",
+      "foodCode": "07066",
+      "foodName": "(かんきつ類) グレープフルーツ 果実飲料 20%果汁入り飲料",
+      "reason": "partDifference"
+    },
+    {
+      "group": "グレープフルーツ",
+      "foodCode": "07067",
+      "foodName": "(かんきつ類) グレープフルーツ 缶詰",
+      "reason": "partDifference"
+    },
+    {
+      "group": "グァバ",
+      "foodCode": "07058",
+      "foodName": "グァバ 果実飲料 20%果汁入り飲料 (ネクター)",
+      "reason": "partDifference"
+    },
+    {
+      "group": "グァバ",
+      "foodCode": "07059",
+      "foodName": "グァバ 果実飲料 10%果汁入り飲料",
+      "reason": "partDifference"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07080",
+      "foodName": "(すもも類) にほんすもも 生",
+      "reason": "unlistedOrAmbiguousVariety"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07081",
+      "foodName": "(すもも類) プルーン 生",
+      "reason": "unlistedOrAmbiguousVariety"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07082",
+      "foodName": "(すもも類) プルーン 乾",
+      "reason": "stateDifference"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07137",
+      "foodName": "(もも類) もも 果実飲料 30%果汁入り飲料 (ネクター)",
+      "reason": "partDifference"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07138",
+      "foodName": "(もも類) もも 缶詰 白肉種 果肉",
+      "reason": "partDifference"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07175",
+      "foodName": "(もも類) もも 缶詰 黄肉種 果肉",
+      "reason": "partDifference"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07139",
+      "foodName": "(もも類) もも 缶詰 液汁",
+      "reason": "stateDifference"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07140",
+      "foodName": "(もも類) ネクタリン 生",
+      "reason": "unlistedOrAmbiguousVariety"
+    },
+    {
+      "group": "もも",
+      "foodCode": "07141",
+      "foodName": "やまもも 生",
+      "reason": "unlistedOrAmbiguousVariety"
+    }
+  ],
+  "unusedCookingStateCounts": {
+    "ゆで": 166,
+    "焼き": 96,
+    "油いため": 40,
+    "蒸し": 13,
+    "水煮": 28,
+    "ソテー": 7,
+    "天ぷら": 11,
+    "素揚げ": 5,
+    "電子レンジ調理": 6,
+    "ポーチドエッグ": 1,
+    "調理後": 3
+  },
+  "retainedMeatPartOrSkinCount": 163,
+  "retainedMeatAttributeDifferenceCount": 163,
+  "searchTopResults": {
+    "オレンジ": [
+      {
+        "id": "rep-orange",
+        "displayName": "オレンジ"
+      }
+    ],
+    "ほうれん草": [
+      {
+        "id": "rep-spinach",
+        "displayName": "ほうれん草"
+      }
+    ],
+    "鶏むね肉": [
+      {
+        "id": "rep-chicken-breast-skin-on",
+        "displayName": "鶏むね肉（皮あり）"
+      },
+      {
+        "id": "rep-chicken-breast-skin-off",
+        "displayName": "鶏むね肉（皮なし）"
+      }
+    ],
+    "鮭": [
+      {
+        "id": "rep-salmon",
+        "displayName": "鮭"
+      }
+    ],
+    "パスタ": [
+      {
+        "id": "rep-pasta-dry",
+        "displayName": "パスタ（乾麺）"
+      }
+    ],
+    "うどん": [
+      {
+        "id": "rep-udon-dry",
+        "displayName": "うどん（乾麺）"
+      }
+    ],
+    "油": [
+      {
+        "id": "rep-sesame-oil",
+        "displayName": "ごま油"
+      },
+      {
+        "id": "rep-olive-oil",
+        "displayName": "オリーブオイル"
+      }
+    ]
+  },
+  "warnings": []
+}

@@ -6,19 +6,49 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run test:unit && npm run test:rules && npm run test:e2e",
+    "test:unit": "vitest run",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-recipe-library \"vitest run --config vitest.rules.config.mts\"",
+    "test:e2e": "playwright test",
+    "dev:e2e": "node scripts/start-e2e.mjs",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "generate:icons": "node scripts/generate-icons.mjs",
+    "migrate:legacy": "tsx scripts/migrate-legacy-recipes.ts",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "engines": {
+    "node": ">=22.0.0"
   },
   "dependencies": {
+    "@google/genai": "^2.15.0",
+    "firebase": "^12.17.0",
+    "firebase-admin": "^14.2.0",
+    "idb": "^8.0.3",
     "next": "16.2.12",
     "react": "19.2.4",
-    "react-dom": "19.2.4"
+    "react-dom": "19.2.4",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
+    "@playwright/test": "^1.62.1",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.0.5",
+    "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
-    "typescript": "^5"
+    "fake-indexeddb": "^6.2.5",
+    "firebase-tools": "^15.25.1",
+    "jsdom": "^30.0.1",
+    "tsx": "^4.23.1",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

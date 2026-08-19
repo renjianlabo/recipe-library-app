@@ -1,0 +1,631 @@
+.page,
+.statePage {
+  min-height: 100dvh;
+  background: #f8f7f3;
+  color: #24231f;
+}
+
+.page {
+  --content-width: 680px;
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
+}
+
+.header {
+  min-height: calc(68px + env(safe-area-inset-top));
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  gap: 8px;
+  padding: env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left));
+  border-bottom: 1px solid #dedbd2;
+  background: rgb(248 247 243 / 94%);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+}
+
+.header > div {
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 1.05rem;
+}
+
+.header p {
+  margin-top: 2px;
+  color: #6d685c;
+  font-size: 0.74rem;
+}
+
+.iconButton {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 999px;
+  background: #ece9e1;
+  color: #38362f;
+  font-size: 1.7rem;
+  line-height: 1;
+}
+
+.storageWarning,
+.timerError {
+  width: min(calc(100% - 32px), var(--content-width));
+  margin: 12px auto 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #fff2d6;
+  color: #6f4a00;
+  font-size: 0.88rem;
+}
+
+.timerShelf,
+.stepScreen,
+.completion {
+  width: min(calc(100% - 32px), var(--content-width));
+  margin-inline: auto;
+}
+
+.timerShelf {
+  margin-top: 16px;
+}
+
+.timerShelf > h2,
+.ingredients h2,
+.suggestions h2 {
+  margin-bottom: 10px;
+  color: #5e594e;
+  font-size: 0.88rem;
+}
+
+.timerGrid {
+  display: grid;
+  gap: 10px;
+}
+
+.timerCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border: 1px solid #dad6cb;
+  border-radius: 14px;
+  background: #ffffff;
+}
+
+.timerCard h3 {
+  overflow-wrap: anywhere;
+  font-size: 0.92rem;
+}
+
+.timerCard p:last-child {
+  color: #716b60;
+  font-size: 0.75rem;
+}
+
+.timerClock {
+  margin-block: 2px;
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.timerActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(64px, 1fr));
+  gap: 6px;
+}
+
+.timerActions button,
+.suggestionGrid button,
+.quickTimers button,
+.navigation button,
+.primaryButton,
+.secondaryButton,
+.dangerButton,
+.stateCard button {
+  min-height: 44px;
+  padding: 9px 12px;
+  border: 1px solid #d2cec3;
+  border-radius: 10px;
+  background: #f4f2ec;
+  color: #302e29;
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  touch-action: manipulation;
+}
+
+.timerActions button:disabled,
+.navigation button:disabled {
+  opacity: 0.42;
+}
+
+.timerActions .dangerButton,
+.dangerButton {
+  border-color: #e3bdb8;
+  background: #fff2f0;
+  color: #8a2c23;
+}
+
+.stepScreen {
+  margin-top: 18px;
+  touch-action: pan-y;
+}
+
+.progress {
+  margin-bottom: 10px;
+  color: #6d685c;
+  font-size: 0.86rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.stepCard {
+  padding: 22px 20px;
+  border: 1px solid #dedbd2;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 36px rgb(36 35 31 / 7%);
+}
+
+.ingredients {
+  margin-bottom: 20px;
+  padding: 15px;
+  border-radius: 14px;
+  background: #f1f5ef;
+}
+
+.ingredients ul {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+}
+
+.ingredients li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  line-height: 1.5;
+}
+
+.ingredients strong {
+  flex: none;
+}
+
+.stepText {
+  min-height: 7lh;
+  font-size: clamp(1.18rem, 5.3vw, 1.5rem);
+  line-height: 1.85;
+  white-space: pre-wrap;
+}
+
+.suggestions,
+.manualTimer {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e1d8;
+}
+
+.suggestionGrid,
+.quickTimers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.manualTimer summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.manualTimer form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.manualTimer label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
+.manualTimer input {
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 12px;
+  border: 1px solid #cbc6bb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #24231f;
+  font: inherit;
+  font-size: 16px;
+}
+
+.timeFields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.timerError {
+  width: 100%;
+  margin-inline: 0;
+}
+
+.navigation {
+  min-height: calc(76px + env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: 1fr 1.45fr;
+  gap: 10px;
+  padding: 10px max(16px, env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  border-top: 1px solid #dedbd2;
+  background: rgb(248 247 243 / 96%);
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 10;
+  backdrop-filter: blur(12px);
+}
+
+.navigation button {
+  height: 56px;
+  max-height: 56px;
+  font-size: 1rem;
+}
+
+.primaryButton {
+  border-color: #37634a;
+  background: #37634a;
+  color: #ffffff;
+}
+
+.secondaryButton {
+  background: #ffffff;
+}
+
+.completion {
+  min-height: calc(100dvh - 160px);
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  padding-block: 40px;
+  text-align: center;
+}
+
+.completionMark {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  margin-inline: auto;
+  border-radius: 999px;
+  background: #dfece2;
+  color: #37634a;
+  font-size: 2.4rem;
+}
+
+.completion h2 {
+  font-size: clamp(1.5rem, 7vw, 2rem);
+}
+
+.kicker {
+  color: #6d685c;
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.choiceActions {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.statePage {
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 20px max(24px, env(safe-area-inset-bottom));
+}
+
+.stateCard {
+  width: min(100%, 440px);
+  padding: 28px 24px;
+  border: 1px solid #dedbd2;
+  border-radius: 20px;
+  background: #ffffff;
+}
+
+.stateCard h1 {
+  margin-block: 8px 12px;
+  font-size: clamp(1.35rem, 6vw, 1.8rem);
+  line-height: 1.35;
+}
+
+.stateCard p {
+  line-height: 1.7;
+}
+
+.visuallyHidden {
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  position: absolute;
+}
+
+@media (min-width: 620px) {
+  .timerGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .navigation {
+    backdrop-filter: none;
+  }
+}
+
+/* Figma Make cooking surface: focused, warm, and contained within the app shell. */
+.page {
+  --content-width: 100%;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0;
+  background: #fffcf7;
+}
+
+.header {
+  position: relative;
+  top: auto;
+  z-index: 4;
+  display: grid;
+  flex: none;
+  grid-template-columns: 42px 1fr 42px;
+  min-height: auto;
+  padding: calc(48px + env(safe-area-inset-top)) 20px 16px;
+  border: 0;
+  background: #fffcf7;
+  backdrop-filter: none;
+}
+
+.header h1 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.header p {
+  margin: 0;
+  color: #6f7067;
+  font-family: "Nunito Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+
+.iconButton {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  background: #f4f4ee;
+  color: #5f6058;
+  font-size: inherit;
+}
+
+.timerShelf {
+  flex: none;
+  width: auto;
+  max-height: 176px;
+  margin: 0 20px 8px;
+  overflow-y: auto;
+}
+
+.timerCard {
+  padding: 10px 12px;
+  border-color: #e8ddd5;
+  border-radius: 14px;
+  box-shadow: none;
+}
+
+.stepScreen {
+  width: 100%;
+  min-height: 0;
+  flex: 1;
+  margin: 0;
+  overflow-y: auto;
+  padding: 8px 28px 24px;
+}
+
+.progress {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.stepCard {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.stepKicker {
+  margin: 0;
+  color: #b66547;
+  font-family: "Nunito Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .15em;
+}
+
+.stepText {
+  min-height: 0;
+  margin: 14px 0 32px;
+  color: #272821;
+  font-size: clamp(22px, 6.8vw, 27px);
+  font-weight: 900;
+  line-height: 1.65;
+  letter-spacing: -.06em;
+}
+
+.ingredients {
+  margin: 0;
+  padding: 17px 16px;
+  border: 1px solid #e3e7df;
+  border-radius: 17px;
+  background: #f6f9f4;
+}
+
+.ingredients h2 {
+  margin: 0 0 10px;
+  color: #597156;
+  font-size: 12px;
+}
+
+.ingredients li {
+  padding: 7px 0;
+  border-top: 1px solid #e2e9df;
+  color: #55564f;
+  font-size: 12px;
+}
+
+.allMaterialsButton {
+  display: flex;
+  width: 100%;
+  min-height: 45px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 15px;
+  border: 1px solid #d9e5d6;
+  border-radius: 14px;
+  background: #fbfdf9;
+  color: #5b7657;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.allMaterialsButton span {
+  margin-left: 2px;
+  font-size: 13px;
+}
+
+.suggestions,
+.manualTimer {
+  margin-top: 17px;
+  padding-top: 14px;
+  border-top-color: #ebe7df;
+}
+
+.suggestionGrid button,
+.quickTimers button,
+.manualTimer .secondaryButton {
+  border-color: #f0d5c9;
+  border-radius: 13px;
+  background: #fff8f4;
+  color: #a35c42;
+}
+
+.navigation {
+  position: relative;
+  inset: auto;
+  z-index: 4;
+  flex: none;
+  grid-template-columns: 1fr 1.35fr;
+  min-height: auto;
+  padding: 11px 20px calc(19px + env(safe-area-inset-bottom));
+  border: 0;
+  background: #fffcf7;
+  backdrop-filter: none;
+}
+
+.navigation button {
+  height: 54px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.navigation .primaryButton {
+  border-color: #df6b47;
+  background: #df6b47;
+}
+
+.materialsSheetLayer {
+  position: absolute;
+  z-index: 20;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+}
+
+.materialsBackdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(41 40 35 / 25%);
+  backdrop-filter: blur(1px);
+}
+
+.materialsSheet {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  height: min(58%, 510px);
+  flex-direction: column;
+  padding: 10px 20px calc(20px + env(safe-area-inset-bottom));
+  border-radius: 25px 25px 0 0;
+  background: #fffefa;
+  box-shadow: 0 -14px 35px rgb(40 36 28 / 16%);
+  animation: sheetRise .22s ease-out;
+}
+
+.sheetHandle {
+  width: 38px;
+  height: 4px;
+  margin: 0 auto 14px;
+  border-radius: 99px;
+  background: #d7d6cf;
+}
+
+.materialsSheet header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e9e8df;
+}
+
+.materialsSheet h2 { margin: 0; font-size: 17px; }
+.materialsSheet header button { display: grid; width: 31px; height: 31px; place-items: center; border: 0; border-radius: 50%; background: #f3f3ed; color: #66675f; }
+.sheetMaterialList { flex: 1; overflow-y: auto; padding-top: 6px; }
+.sheetMaterialList div { display: flex; justify-content: space-between; padding: 12px 2px; border-bottom: 1px solid #e9e8df; color: #55564e; font-size: 13px; }
+.sheetMaterialList b { color: #62635b; }
+
+@keyframes sheetRise { from { transform: translateY(100%); } to { transform: translateY(0); } }
