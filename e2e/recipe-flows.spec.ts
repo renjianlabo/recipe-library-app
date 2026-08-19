@@ -91,14 +91,23 @@ async function waitForCookingPersistence(page: Page) {
 test("手動作成から保存・一覧・詳細・編集まで完了する", async ({ page }) => {
   await page.goto("/recipes/new");
   await expect(page.getByRole("heading", { name: "手動でレシピを作成" })).toBeVisible();
+  await expect(page.getByText("AIに追加修正を頼む", { exact: true })).not.toBeVisible();
+  await expect(page.getByLabel("修正指示", { exact: true })).not.toBeVisible();
+  await expect(page.getByRole("button", { name: "修正案を作る" })).not.toBeVisible();
 
   await page.getByLabel("レシピ名 *", { exact: true }).fill("E2E卵焼き");
   await page.getByRole("combobox", { name: "分類 *", exact: true }).selectOption("main");
   await page.getByLabel("材料名 *", { exact: true }).fill("卵");
-  await page.getByLabel("分量 *", { exact: true }).fill("2");
-  await page.getByLabel("単位", { exact: true }).fill("個");
+  await page.getByLabel("分量 *", { exact: true }).fill("適量");
+  await page.getByRole("button", { name: "調味料を追加" }).click();
+  const seasoning = page.locator("article.editor-item").filter({ hasText: "調味料 1" });
+  await seasoning.getByLabel("調味料名 *", { exact: true }).fill("しょうゆ");
+  await seasoning.getByLabel("分量 *", { exact: true }).fill("1/2");
+  await seasoning.getByLabel("単位", { exact: true }).fill("大さじ");
+  await seasoning.getByLabel("補足", { exact: true }).fill("仕上げ用");
   await page.getByLabel("工程本文 *", { exact: true }).fill("卵を混ぜて焼く。");
   await page.getByRole("checkbox", { name: "卵" }).check();
+  await page.getByRole("checkbox", { name: "しょうゆ" }).check();
   await page.getByRole("button", { name: "タイマーを追加" }).click();
   await page.getByLabel("名前", { exact: true }).fill("焼き時間");
   await page.getByLabel("分", { exact: true }).fill("3");
@@ -106,6 +115,9 @@ test("手動作成から保存・一覧・詳細・編集まで完了する", as
   await page.getByRole("button", { name: "レシピを保存" }).click();
   await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
   await expect(page.getByRole("heading", { name: "E2E卵焼き" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "調味料" })).toBeVisible();
+  await expect(page.getByText("適量", { exact: true })).toBeVisible();
+  await expect(page.getByText("大さじ1/2", { exact: true })).toBeVisible();
 
   await page.getByRole("link", { name: "レシピ一覧を閉じる" }).click();
   await expect(page).toHaveURL(/\/recipes$/);

@@ -625,6 +625,7 @@
 .materialsSheet h2 { margin: 0; font-size: 17px; }
 .materialsSheet header button { display: grid; width: 31px; height: 31px; place-items: center; border: 0; border-radius: 50%; background: #f3f3ed; color: #66675f; }
 .sheetMaterialList { flex: 1; overflow-y: auto; padding-top: 6px; }
+.sheetMaterialList h3 { margin: 14px 2px 2px; color: #597156; font-size: 12px; }
 .sheetMaterialList div { display: flex; justify-content: space-between; padding: 12px 2px; border-bottom: 1px solid #e9e8df; color: #55564e; font-size: 13px; }
 .sheetMaterialList b { color: #62635b; }
 

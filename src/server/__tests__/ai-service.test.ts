@@ -30,6 +30,7 @@ describe("AI extraction service", () => {
       type: "video",
       uri: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     });
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("ingredients（材料）、調味料・油・香辛料・だし類はseasonings（調味料）");
   });
 
   it("does not call Gemini when YouTube metadata retrieval fails", async () => {

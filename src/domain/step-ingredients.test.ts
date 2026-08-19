@@ -17,6 +17,9 @@ function recipe(): Recipe {
       { id: "oil", name: "油", amountText: "1", numericAmount: 1, unit: "大さじ", note: "" },
       { id: "water", name: "水", amountText: "0.334", numericAmount: 0.334, unit: "カップ", note: "" },
     ],
+    seasonings: [
+      { id: "salt", name: "塩", amountText: "少々", numericAmount: null, unit: "", note: "" },
+    ],
     steps: [{
       id: "step-1",
       order: 1,
@@ -26,6 +29,7 @@ function recipe(): Recipe {
         { ingredientId: "egg", usage: "all" },
         { ingredientId: "oil", usage: "all" },
         { ingredientId: "water", usage: "all" },
+        { ingredientId: "salt", usage: "all" },
       ],
       timers: [],
     }, {
@@ -64,6 +68,7 @@ describe("deriveStepIngredients", () => {
       "1/2個",
       "大さじ1/2",
       "1/6カップ",
+      "少々",
     ]);
   });
 

@@ -16,8 +16,12 @@ export function allKnownSeasonings(custom: readonly string[] = []): Set<string> 
 
 export function canMakeWithPantry(recipe: Recipe, selected: ReadonlySet<string>, custom: readonly string[] = []): boolean {
   const known = allKnownSeasonings(custom);
-  const requiredSeasonings = recipe.ingredients
+  const legacySeasonings = recipe.ingredients
     .map((ingredient) => ingredient.name.normalize("NFKC").trim())
     .filter((name) => known.has(name));
+  const explicitSeasonings = (recipe.seasonings ?? [])
+    .map((seasoning) => seasoning.name.normalize("NFKC").trim())
+    .filter(Boolean);
+  const requiredSeasonings = [...new Set([...explicitSeasonings, ...legacySeasonings])];
   return requiredSeasonings.every((name) => selected.has(name));
 }

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Recipe } from "@/domain/recipe";
@@ -38,12 +38,23 @@ function recipe(userId = "user-1", id = "recipe-1"): Recipe {
         note: "",
       },
     ],
+    seasonings: [{
+      id: "seasoning-salt",
+      name: "塩",
+      amountText: "少々",
+      numericAmount: null,
+      unit: "",
+      note: "",
+    }],
     steps: [
       {
         id: "step-1",
         order: 1,
         text: "玉ねぎを炒める。",
-        ingredientRefs: [{ ingredientId: "ingredient-onion", usage: "half" }],
+        ingredientRefs: [
+          { ingredientId: "ingredient-onion", usage: "half" },
+          { ingredientId: "seasoning-salt", usage: "all" },
+        ],
         timers: [{ id: "timer-suggestion", label: "炒める", seconds: 180 }],
       },
       {
@@ -81,10 +92,17 @@ describe("CookingMode", () => {
   it("shows the step body before its derived ingredients and runs concurrent timers", async () => {
     render(<CookingMode uid="user-1" recipe={recipe()} />);
 
-    const ingredientHeading = await screen.findByRole("heading", { name: "この工程で使う材料" });
+    const ingredientHeading = await screen.findByRole("heading", { name: "この工程で使う材料・調味料" });
     const stepText = screen.getByText("玉ねぎを炒める。");
     expect(stepText.compareDocumentPosition(ingredientHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(screen.getByText("1/2個（半量）")).toBeInTheDocument();
+    expect(screen.getByText("少々")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /全材料を見る/ }));
+    const materialsDialog = await screen.findByRole("dialog", { name: "全材料" });
+    expect(within(materialsDialog).getByRole("heading", { name: "調味料" })).toBeInTheDocument();
+    expect(within(materialsDialog).getByText("塩")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
 
     const suggestion = screen.getByRole("button", { name: "炒める 3:00 開始" });
     fireEvent.click(suggestion);

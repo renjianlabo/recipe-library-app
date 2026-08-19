@@ -25,9 +25,9 @@ export function normalizeAiDraft(input: unknown): RecipeDraft {
 
   const ingredientIds = new Set<string>();
   const ingredientIdMap = new Map<string, string>();
-  const ingredients = raw.ingredients.map((ingredient, index) => {
+  const normalizeItems = (items: RecipeDraft["ingredients"], prefix: "ingredient" | "seasoning") => items.map((ingredient, index) => {
     const oldId = typeof ingredient.id === "string" ? ingredient.id : "";
-    const id = uniqueId(oldId, `ingredient-${index + 1}`, ingredientIds);
+    const id = uniqueId(oldId, `${prefix}-${index + 1}`, ingredientIds);
     if (!ingredientIdMap.has(oldId)) ingredientIdMap.set(oldId, id);
     const amount = normalizeIngredientAmount(
       ingredient.amountText,
@@ -36,6 +36,8 @@ export function normalizeAiDraft(input: unknown): RecipeDraft {
     );
     return { ...ingredient, ...amount, id };
   });
+  const ingredients = normalizeItems(raw.ingredients, "ingredient");
+  const seasonings = normalizeItems(Array.isArray(raw.seasonings) ? raw.seasonings : [], "seasoning");
 
   const stepIds = new Set<string>();
   const timerIds = new Set<string>();
@@ -66,6 +68,7 @@ export function normalizeAiDraft(input: unknown): RecipeDraft {
   return normalizeRecipeDraft(recipeDraftSchema.parse({
     ...raw,
     ingredients,
+    seasonings,
     steps,
     tips: Array.isArray(raw.tips) ? raw.tips.filter((value) => value.trim()) : [],
     tags: Array.isArray(raw.tags) ? raw.tags.filter((value) => value.trim()) : [],

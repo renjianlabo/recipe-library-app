@@ -98,4 +98,33 @@ describe("IngredientImpactDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "AIに修正を頼む" }));
     expect(onAskAi).toHaveBeenCalledWith(expect.stringContaining("材料「にんにく」を削除"));
   });
+
+  it("deletes a seasoning and omits the AI action when it is not enabled", () => {
+    const onApply = vi.fn();
+    const source = draft();
+    source.seasonings = [{
+      id: "salt",
+      name: "塩",
+      amountText: "少々",
+      numericAmount: null,
+      unit: "",
+      note: "",
+    }];
+    source.steps[0].ingredientRefs.push({ ingredientId: "salt", usage: "all" });
+    render(
+      <IngredientImpactDialog
+        draft={source}
+        ingredientId="salt"
+        itemKind="seasoning"
+        onCancel={() => undefined}
+        onApply={onApply}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "AIに修正を頼む" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "選択内容で削除" }));
+    const result = onApply.mock.calls[0][0] as RecipeDraft;
+    expect(result.seasonings).toEqual([]);
+    expect(result.steps[0].ingredientRefs.some((reference) => reference.ingredientId === "salt")).toBe(false);
+  });
 });

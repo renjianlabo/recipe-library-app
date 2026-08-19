@@ -36,6 +36,7 @@ export function recipeToDraft(recipe: Recipe): RecipeDraft {
     category: recipe.category,
     servings: recipe.servings,
     ingredients: recipe.ingredients,
+    seasonings: recipe.seasonings ?? [],
     steps: recipe.steps,
     tips: recipe.tips,
     memo: recipe.memo,
@@ -66,7 +67,10 @@ export function RecipeEditor({
   const { saveRecipe, saveRecipeAsCopy, getLatestRecipe } = useRecipes();
   const [draft, setDraft] = useState(initialDraft);
   const [baseRecipe, setBaseRecipe] = useState(existingRecipe);
-  const [ingredientToDelete, setIngredientToDelete] = useState<string | null>(null);
+  const [ingredientToDelete, setIngredientToDelete] = useState<{
+    id: string;
+    kind: "ingredient" | "seasoning";
+  } | null>(null);
   const [revisionSeed, setRevisionSeed] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -74,6 +78,7 @@ export function RecipeEditor({
   const [servingsConfirmed, setServingsConfirmed] = useState(!needsServingsConfirmation);
   const [recipeId] = useState(() => existingRecipe?.id ?? crypto.randomUUID());
   const autosave = useDraftAutosave({ draftKey, value: draft });
+  const aiRevisionEnabled = Boolean(existingRecipe) || initialDraft.source.type !== "manual";
 
   const setEditorDraft = useCallback((next: RecipeDraft) => {
     if (next.servings !== draft.servings && next.servings !== null) setServingsConfirmed(true);
@@ -147,18 +152,20 @@ export function RecipeEditor({
         <RecipeFieldsEditor
           draft={draft}
           onChange={setEditorDraft}
-          onRequestIngredientDelete={setIngredientToDelete}
+          onRequestIngredientDelete={(id, kind = "ingredient") => setIngredientToDelete({ id, kind })}
         />
 
-        <AiRevisionPanel
-          draft={draft}
-          onApply={(next) => {
-            setDraft(next);
-            if (next.servings !== null) setServingsConfirmed(true);
-          }}
-          seedInstruction={revisionSeed}
-          onSeedConsumed={() => setRevisionSeed(null)}
-        />
+        {aiRevisionEnabled ? (
+          <AiRevisionPanel
+            draft={draft}
+            onApply={(next) => {
+              setDraft(next);
+              if (next.servings !== null) setServingsConfirmed(true);
+            }}
+            seedInstruction={revisionSeed}
+            onSeedConsumed={() => setRevisionSeed(null)}
+          />
+        ) : null}
 
         {saveError ? <p className="alert error" role="alert">{saveError}</p> : null}
         <footer className="editor-save-bar">
@@ -177,17 +184,18 @@ export function RecipeEditor({
         {ingredientToDelete ? (
           <IngredientImpactDialog
             draft={draft}
-            ingredientId={ingredientToDelete}
+            ingredientId={ingredientToDelete.id}
+            itemKind={ingredientToDelete.kind}
             onCancel={() => setIngredientToDelete(null)}
             onApply={(next) => {
               setDraft(next);
               setIngredientToDelete(null);
             }}
-            onAskAi={(instruction) => {
+            onAskAi={aiRevisionEnabled ? (instruction) => {
               setIngredientToDelete(null);
               setRevisionSeed(instruction);
               window.setTimeout(() => document.getElementById("ai-revision")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-            }}
+            } : undefined}
           />
         ) : null}
 

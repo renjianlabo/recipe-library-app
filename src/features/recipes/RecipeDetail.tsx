@@ -42,9 +42,14 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
           return <div key={ingredient.id}><span>{ingredient.name}{ingredient.note ? <small>（{ingredient.note}）</small> : null}</span><b>{amount.displayAmount}</b></div>;
         })}</div></section>
 
+        {recipe.seasonings?.length ? <section className="detail-section"><h2>調味料</h2><div className="detail-ingredients">{recipe.seasonings.map((seasoning) => {
+          const amount = formatScaledIngredientAmount(seasoning, recipe.servings, selectedServings);
+          return <div key={seasoning.id}><span>{seasoning.name}{seasoning.note ? <small>（{seasoning.note}）</small> : null}</span><b>{amount.displayAmount}</b></div>;
+        })}</div></section> : null}
+
         <section className="detail-section"><h2>作り方</h2><ol className="detail-steps">{recipe.steps.map((step, index) => {
           const stepIngredients = deriveStepIngredients(recipe, step, selectedServings);
-          return <li key={step.id}><span>{index + 1}</span><div>{stepIngredients.length ? <div className="detail-step-materials"><b>使用材料</b>{stepIngredients.map((ingredient) => <small key={`${step.id}-${ingredient.ingredientId}`}>{ingredient.name} {ingredient.displayAmount}</small>)}</div> : null}<p>{step.text}</p>{step.timers.length ? <div className="detail-timers">{step.timers.map((timer) => <small key={timer.id}><AppIcon name="clock" size={14} />{timer.label} {Math.ceil(timer.seconds / 60)}分</small>)}</div> : null}</div></li>;
+          return <li key={step.id}><span>{index + 1}</span><div>{stepIngredients.length ? <div className="detail-step-materials"><b>使用材料・調味料</b>{stepIngredients.map((ingredient) => <small key={`${step.id}-${ingredient.ingredientId}`}>{ingredient.name} {ingredient.displayAmount}</small>)}</div> : null}<p>{step.text}</p>{step.timers.length ? <div className="detail-timers">{step.timers.map((timer) => <small key={timer.id}><AppIcon name="clock" size={14} />{timer.label} {Math.ceil(timer.seconds / 60)}分</small>)}</div> : null}</div></li>;
         })}</ol></section>
 
         {recipe.tips.length ? <section className="detail-section detail-note"><h2>ポイント</h2>{recipe.tips.map((tip) => <p key={tip}>{tip}</p>)}</section> : null}

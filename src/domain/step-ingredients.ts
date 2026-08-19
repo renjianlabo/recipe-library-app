@@ -25,7 +25,10 @@ export function deriveStepIngredients(
   selectedServings: Recipe["servings"],
 ): DerivedStepIngredient[] {
   const scale = selectedServings / recipe.servings;
-  const ingredients = new Map(recipe.ingredients.map((ingredient) => [ingredient.id, ingredient]));
+  const ingredients = new Map(
+    [...recipe.ingredients, ...(recipe.seasonings ?? [])]
+      .map((ingredient) => [ingredient.id, ingredient]),
+  );
 
   return step.ingredientRefs.flatMap<DerivedStepIngredient>((reference) => {
     const ingredient = ingredients.get(reference.ingredientId);

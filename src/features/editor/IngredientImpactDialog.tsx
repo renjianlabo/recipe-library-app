@@ -28,14 +28,19 @@ export function IngredientImpactDialog({
   onCancel,
   onApply,
   onAskAi,
+  itemKind = "ingredient",
 }: {
   draft: RecipeDraft;
   ingredientId: string;
   onCancel: () => void;
   onApply: (draft: RecipeDraft) => void;
-  onAskAi: (instruction: string) => void;
+  onAskAi?: (instruction: string) => void;
+  itemKind?: "ingredient" | "seasoning";
 }) {
-  const ingredient = draft.ingredients.find((item) => item.id === ingredientId);
+  const ingredient = itemKind === "seasoning"
+    ? (draft.seasonings ?? []).find((item) => item.id === ingredientId)
+    : draft.ingredients.find((item) => item.id === ingredientId);
+  const itemLabel = itemKind === "seasoning" ? "調味料" : "材料";
   const impacts = useMemo(
     () => findIngredientRemovalImpacts(draft, ingredientId),
     [draft, ingredientId],
@@ -98,6 +103,7 @@ export function IngredientImpactDialog({
     onApply({
       ...draft,
       ingredients: draft.ingredients.filter((item) => item.id !== ingredientId),
+      seasonings: (draft.seasonings ?? []).filter((item) => item.id !== ingredientId),
       steps: nextSteps,
       tips: nextTips,
       memo: memoAction === "delete"
@@ -116,7 +122,7 @@ export function IngredientImpactDialog({
       onClose={onCancel}
     >
         <p className="eyebrow">Related content</p>
-        <h2 id="ingredient-impact-title">「{ingredient.name || "名称未入力の材料"}」を削除しますか</h2>
+        <h2 id="ingredient-impact-title">「{ingredient.name || `名称未入力の${itemLabel}`}」を削除しますか</h2>
         {impacts.length ? (
           <>
             <p id="ingredient-impact-description">関連する工程・ポイント・メモが見つかりました。文章ごとに残し方を選び、反映後も内容を確認してください。</p>
@@ -127,7 +133,7 @@ export function IngredientImpactDialog({
                   <article className="impact-item" key={key}>
                     <strong>{sectionLabel(impact.section)} {impact.section === "memo" ? "" : impact.index + 1}</strong>
                     <p>{impact.text || "（本文なし）"}</p>
-                    {impact.matches.includes("reference") ? <p className="muted">工程材料の参照は自動で解除します。</p> : null}
+                    {impact.matches.includes("reference") ? <p className="muted">工程の材料・調味料参照は自動で解除します。</p> : null}
                     {impact.matches.includes("text") ? (
                       <label className="field">
                         <span>文章の扱い</span>
@@ -136,7 +142,7 @@ export function IngredientImpactDialog({
                           [key]: event.target.value as ImpactAction,
                         }))}>
                           <option value="keep">文章はそのまま残す</option>
-                          <option value="remove-name">材料名だけ除く</option>
+                          <option value="remove-name">{itemLabel}名だけ除く</option>
                           <option value="delete">この{sectionLabel(impact.section)}を削除</option>
                         </select>
                       </label>
@@ -161,12 +167,14 @@ export function IngredientImpactDialog({
               })}
             </div>
           </>
-        ) : <p id="ingredient-impact-description">この材料を参照する工程や文章は見つかりませんでした。</p>}
+        ) : <p id="ingredient-impact-description">この{itemLabel}を参照する工程や文章は見つかりませんでした。</p>}
         <div className="button-row">
           <button className="button" type="button" data-modal-initial-focus onClick={onCancel}>キャンセル</button>
-          <button className="button secondary" type="button" onClick={() => onAskAi(
-            `材料「${ingredient.name}」を削除し、関連する工程・ポイント・メモを意味が自然になるよう必要最小限だけ修正してください。`,
-          )}>AIに修正を頼む</button>
+          {onAskAi ? (
+            <button className="button secondary" type="button" onClick={() => onAskAi(
+              `${itemLabel}「${ingredient.name}」を削除し、関連する工程・ポイント・メモを意味が自然になるよう必要最小限だけ修正してください。`,
+            )}>AIに修正を頼む</button>
+          ) : null}
           <button className="button danger" type="button" onClick={applyRemoval}>選択内容で削除</button>
         </div>
     </ModalDialog>

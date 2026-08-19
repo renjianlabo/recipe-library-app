@@ -570,7 +570,7 @@ export function CookingMode({
 
               {stepIngredients.length ? (
                 <section className={styles.ingredients} aria-labelledby="step-ingredients-heading">
-                  <h2 id="step-ingredients-heading">この工程で使う材料</h2>
+                  <h2 id="step-ingredients-heading">この工程で使う材料・調味料</h2>
                   <ul>
                     {stepIngredients.map((ingredient) => (
                       <li key={`${currentStep.id}-${ingredient.ingredientId}-${ingredient.usage}`}>
@@ -664,10 +664,17 @@ export function CookingMode({
           <section className={styles.materialsSheet}>
             <div className={styles.sheetHandle} />
             <header><h2>全材料</h2><button type="button" onClick={() => setAllMaterialsOpen(false)} aria-label="閉じる"><AppIcon name="x" size={19} /></button></header>
-            <div className={styles.sheetMaterialList}>{session.recipe.ingredients.map((ingredient) => {
-              const amount = formatScaledIngredientAmount(ingredient, session.recipe.servings, session.selectedServings);
-              return <div key={ingredient.id}><span>{ingredient.name}</span><b>{amount.displayAmount}</b></div>;
-            })}</div>
+            <div className={styles.sheetMaterialList}>
+              <h3>材料</h3>
+              {session.recipe.ingredients.map((ingredient) => {
+                const amount = formatScaledIngredientAmount(ingredient, session.recipe.servings, session.selectedServings);
+                return <div key={ingredient.id}><span>{ingredient.name}</span><b>{amount.displayAmount}</b></div>;
+              })}
+              {session.recipe.seasonings?.length ? <><h3>調味料</h3>{session.recipe.seasonings.map((seasoning) => {
+                const amount = formatScaledIngredientAmount(seasoning, session.recipe.servings, session.selectedServings);
+                return <div key={seasoning.id}><span>{seasoning.name}</span><b>{amount.displayAmount}</b></div>;
+              })}</> : null}
+            </div>
           </section>
         </div>
       ) : null}

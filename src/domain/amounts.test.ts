@@ -26,7 +26,7 @@ describe("amount helpers", () => {
   });
 
   it("does not guess blank, qualitative, negative, malformed, or zero-denominator input", () => {
-    for (const value of ["", "適量", "-1", "1/0", "1 2/2", "約2", null, undefined]) {
+    for (const value of ["", "少々", "適量", "適宜", "ひとつまみ", "-1", "1/0", "1 2/2", "約2", null, undefined]) {
       expect(parseAmountText(value)).toBeNull();
     }
   });
@@ -50,6 +50,11 @@ describe("amount helpers", () => {
       numericAmount: null,
       unit: "",
     });
+    expect(normalizeIngredientAmount("適宜", null, "")).toEqual({
+      amountText: "適宜",
+      numericAmount: null,
+      unit: "",
+    });
   });
 
   it("scales numeric values to every allowed serving count and leaves qualitative text unchanged", () => {
@@ -65,6 +70,12 @@ describe("amount helpers", () => {
       amountText: "ひとつまみ",
       numericAmount: null,
     });
+    for (const amountText of ["少々", "適量", "適宜", "ひとつまみ", "お好みで"]) {
+      expect(scaleAmount({ amountText, numericAmount: null }, 2, 4)).toEqual({
+        amountText,
+        numericAmount: null,
+      });
+    }
   });
 
   it("formats common fractions, mixed numbers, and other values without long decimals", () => {

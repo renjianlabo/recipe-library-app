@@ -32,7 +32,8 @@ export function findIngredientRemovalImpacts(
   recipe: RecipeDraft,
   ingredientId: string,
 ): IngredientRemovalImpact[] {
-  const ingredient = recipe.ingredients.find((item) => item.id === ingredientId);
+  const ingredient = [...recipe.ingredients, ...(recipe.seasonings ?? [])]
+    .find((item) => item.id === ingredientId);
   if (!ingredient) return [];
   const impacts: IngredientRemovalImpact[] = [];
 

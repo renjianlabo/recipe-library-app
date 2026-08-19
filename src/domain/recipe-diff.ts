@@ -107,13 +107,20 @@ export function diffRecipes(before: RecipeDraft, after: RecipeDraft): RecipeDiff
     ["note", "補足"],
     ["nutritionFoodId", "食品紐付け"],
   ]);
+  diffIdentifiedItems(changes, "seasonings", "調味料", before.seasonings ?? [], after.seasonings ?? [], [
+    ["name", "名前"],
+    ["amountText", "分量"],
+    ["numericAmount", "数値分量"],
+    ["unit", "単位"],
+    ["note", "補足"],
+    ["nutritionFoodId", "食品紐付け"],
+  ]);
   diffIdentifiedItems(changes, "steps", "工程", before.steps, after.steps, [
     ["order", "順番"],
     ["text", "本文"],
-    ["ingredientRefs", "使用材料"],
+    ["ingredientRefs", "使用材料・調味料"],
     ["timers", "タイマー"],
   ]);
 
   return { hasChanges: changes.length > 0, changes };
 }
-

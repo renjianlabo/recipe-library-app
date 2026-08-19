@@ -1,11 +1,6 @@
 import { z } from "zod";
 
-import {
-  cleanAmountText,
-  isQualitativeAmount,
-  normalizeIngredientAmount,
-  parseAmountText,
-} from "./amounts";
+import { cleanAmountText, normalizeIngredientAmount, parseAmountText } from "./amounts";
 import { normalizeOilName, normalizeOilText } from "./oil-normalization";
 import {
   isHttpUrl,
@@ -50,7 +45,6 @@ function addIngredientAmountIssues(
   allowBlank: boolean,
 ): void {
   const amountText = cleanAmountText(value.amountText);
-  const unit = cleanAmountText(value.unit);
   if (!amountText) {
     if (!allowBlank) {
       context.addIssue({ code: "custom", path: ["amountText"], message: "分量を入力してください" });
@@ -65,31 +59,15 @@ function addIngredientAmountIssues(
     return;
   }
 
-  if (isQualitativeAmount(amountText)) {
+  const parsed = parseAmountText(amountText);
+  if (parsed === null) {
     if (value.numericAmount !== null) {
       context.addIssue({
         code: "custom",
         path: ["numericAmount"],
-        message: "少々・適量・ひとつまみは数値化しません",
+        message: "数値として解釈できない分量はnumericAmountをnullにしてください",
       });
     }
-    if (unit) {
-      context.addIssue({
-        code: "custom",
-        path: ["unit"],
-        message: "定性的な分量はamountTextだけに保存してください",
-      });
-    }
-    return;
-  }
-
-  const parsed = parseAmountText(amountText);
-  if (parsed === null) {
-    context.addIssue({
-      code: "custom",
-      path: ["amountText"],
-      message: "分量は整数・小数・分数、または定性的な分量で入力してください",
-    });
     return;
   }
   if (value.numericAmount === null || Math.abs(value.numericAmount - parsed) > 1e-9) {
@@ -224,6 +202,7 @@ const recipeDraftShape = {
   // AI extraction may leave the serving count unresolved until the user confirms it.
   servings: allowedServingSchema.nullable(),
   ingredients: z.array(ingredientDraftSchema).max(100),
+  seasonings: z.array(ingredientDraftSchema).max(100).optional(),
   steps: z.array(recipeStepDraftSchema).max(100),
   tips: z.array(z.string().trim().max(500)).max(50),
   memo: z.string().trim().max(4_000),
@@ -233,6 +212,7 @@ const recipeDraftShape = {
 
 interface RecipeIntegrityValue {
   ingredients: Array<{ id: string }>;
+  seasonings?: Array<{ id: string }>;
   steps: Array<{
     id: string;
     order: number;
@@ -252,6 +232,16 @@ function addRecipeIntegrityIssues(value: RecipeIntegrityValue, context: z.Refine
       });
     }
     ingredientIds.add(ingredient.id);
+  });
+  (value.seasonings ?? []).forEach((seasoning, index) => {
+    if (ingredientIds.has(seasoning.id)) {
+      context.addIssue({
+        code: "custom",
+        path: ["seasonings", index, "id"],
+        message: "材料・調味料IDが重複しています",
+      });
+    }
+    ingredientIds.add(seasoning.id);
   });
 
   const stepIds = new Set<string>();
@@ -275,7 +265,7 @@ function addRecipeIntegrityIssues(value: RecipeIntegrityValue, context: z.Refine
         context.addIssue({
           code: "custom",
           path: ["steps", stepIndex, "ingredientRefs", referenceIndex, "ingredientId"],
-          message: "材料一覧にない材料を工程から参照しています",
+          message: "材料・調味料一覧にない項目を工程から参照しています",
         });
       }
       if (referencedIds.has(reference.ingredientId)) {
@@ -311,6 +301,7 @@ export const recipeSchema = z.object({
   category: z.enum(RECIPE_CATEGORIES),
   servings: allowedServingSchema,
   ingredients: z.array(ingredientSchema).min(1, "材料を1件以上入力してください").max(100),
+  seasonings: z.array(ingredientSchema).max(100).optional(),
   steps: z.array(recipeStepSchema).min(1, "工程を1件以上入力してください").max(100),
   tips: z.array(z.string().trim().min(1).max(500)).max(50),
   memo: recipeDraftShape.memo,
@@ -357,6 +348,7 @@ export function createEmptyRecipeDraft(): RecipeDraft {
       unit: "",
       note: "",
     }],
+    seasonings: [],
     steps: [{
       id: "step-1",
       order: 1,
@@ -376,7 +368,7 @@ function uniqueTrimmed(values: readonly string[]): string[] {
 }
 
 export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
-  const ingredients = draft.ingredients.map((ingredient) => {
+  const normalizeItems = (items: readonly IngredientDraft[]): IngredientDraft[] => items.map((ingredient) => {
     const amount = normalizeIngredientAmount(
       ingredient.amountText,
       ingredient.numericAmount,
@@ -395,6 +387,8 @@ export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
         : { nutritionFoodId: ingredient.nutritionFoodId?.trim() || null }),
     };
   });
+  const ingredients = normalizeItems(draft.ingredients);
+  const seasonings = normalizeItems(draft.seasonings ?? []);
 
   const steps = draft.steps.map((step, stepIndex) => ({
     ...step,
@@ -420,6 +414,7 @@ export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
     ...draft,
     title: draft.title.normalize("NFKC").trim(),
     ingredients,
+    seasonings,
     steps,
     tips: uniqueTrimmed(draft.tips),
     memo: draft.memo.normalize("NFKC").trim(),

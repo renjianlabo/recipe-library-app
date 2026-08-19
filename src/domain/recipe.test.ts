@@ -90,7 +90,9 @@ describe("recipe schemas", () => {
     const current = finalizeRecipeDraft(validDraft(), metadata);
     const legacyStoredRecipe: Record<string, unknown> = { ...current };
     delete legacyStoredRecipe.isFavorite;
+    delete legacyStoredRecipe.seasonings;
     expect(recipeSchema.parse(legacyStoredRecipe).isFavorite).toBe(false);
+    expect(recipeSchema.parse(legacyStoredRecipe).seasonings).toBeUndefined();
   });
 
   it("rejects unresolved or unsupported servings at finalization", () => {
@@ -169,5 +171,42 @@ describe("recipe schemas", () => {
       numericAmount: null,
       unit: "",
     });
+  });
+
+  it("accepts string amounts and keeps qualitative values unchanged", () => {
+    for (const amountText of ["300", "0.5", "1/2", "少々", "適量", "適宜", "ひとつまみ"]) {
+      const numericAmount = ["300", "0.5", "1/2"].includes(amountText)
+        ? Number(amountText === "1/2" ? 0.5 : amountText)
+        : null;
+      const draft = validDraft({
+        ingredients: [{ ...validDraft().ingredients[0], amountText, numericAmount }],
+      });
+      expect(recipeDraftSchema.safeParse(draft).success).toBe(true);
+      expect(normalizeRecipeDraft(draft).ingredients[0].amountText).toBe(amountText);
+    }
+  });
+
+  it("adds seasonings without reclassifying legacy ingredients and allows step references to both", () => {
+    const draft = validDraft({
+      seasonings: [{
+        id: "seasoning-1",
+        name: "しょうゆ",
+        amountText: "適量",
+        numericAmount: null,
+        unit: "",
+        note: "仕上げ用",
+      }],
+      steps: [{
+        ...validDraft().steps[0],
+        ingredientRefs: [
+          { ingredientId: "ingredient-1", usage: "all" },
+          { ingredientId: "seasoning-1", usage: "all" },
+        ],
+      }],
+    });
+    const normalized = normalizeRecipeDraft(draft);
+    expect(normalized.ingredients.map((item) => item.id)).toEqual(["ingredient-1"]);
+    expect(normalized.seasonings?.map((item) => item.id)).toEqual(["seasoning-1"]);
+    expect(recipeDraftSchema.safeParse(normalized).success).toBe(true);
   });
 });

@@ -2,7 +2,7 @@ export const ALLOWED_SERVINGS = [0.5, 1, 2, 3, 4] as const;
 
 export type AllowedServing = (typeof ALLOWED_SERVINGS)[number];
 
-export const QUALITATIVE_AMOUNTS = ["少々", "適量", "ひとつまみ"] as const;
+export const QUALITATIVE_AMOUNTS = ["少々", "適量", "適宜", "ひとつまみ"] as const;
 
 export type QualitativeAmount = (typeof QUALITATIVE_AMOUNTS)[number];
 
@@ -191,14 +191,12 @@ export function normalizeIngredientAmount(
 ): IngredientAmount & { unit: string } {
   const text = cleanAmountText(amountText);
   const cleanUnit = cleanAmountText(unit);
-  const qualitative = isQualitativeAmount(text)
-    ? text
-    : isQualitativeAmount(cleanUnit)
-      ? cleanUnit
-      : null;
+  if (isQualitativeAmount(text)) {
+    return { amountText: text, numericAmount: null, unit: cleanUnit };
+  }
 
-  if (qualitative) {
-    return { amountText: qualitative, numericAmount: null, unit: "" };
+  if (isQualitativeAmount(cleanUnit)) {
+    return { amountText: cleanUnit, numericAmount: null, unit: "" };
   }
 
   const parsedText = parseAmountText(text);

@@ -119,9 +119,11 @@ function ingredientName(
   before: RecipeDraft,
   after: RecipeDraft,
 ): string {
-  return after.ingredients.find((ingredient) => ingredient.id === ingredientId)?.name
-    || before.ingredients.find((ingredient) => ingredient.id === ingredientId)?.name
-    || "名前不明の材料";
+  return [...after.ingredients, ...(after.seasonings ?? [])]
+    .find((ingredient) => ingredient.id === ingredientId)?.name
+    || [...before.ingredients, ...(before.seasonings ?? [])]
+      .find((ingredient) => ingredient.id === ingredientId)?.name
+    || "名前不明の材料・調味料";
 }
 
 function ingredientRefText(
@@ -240,6 +242,9 @@ function formatOrderValue(path: string, value: unknown, draft: RecipeDraft): str
   if (path === "ingredients.order") {
     return ids.map((id) => draft.ingredients.find((ingredient) => ingredient.id === id)?.name || "名前不明の材料").join(" → ") || "なし";
   }
+  if (path === "seasonings.order") {
+    return ids.map((id) => draft.seasonings?.find((seasoning) => seasoning.id === id)?.name || "名前不明の調味料").join(" → ") || "なし";
+  }
   if (path === "steps.order") {
     return ids.map((id) => {
       const step = draft.steps.find((candidate) => candidate.id === id);
@@ -277,15 +282,18 @@ export function formatRecipeDiffChange(
   const isIngredientItem = change.path.startsWith("ingredients.")
     && change.path !== "ingredients.order"
     && change.path.split(".").length === 2;
+  const isSeasoningItem = change.path.startsWith("seasonings.")
+    && change.path !== "seasonings.order"
+    && change.path.split(".").length === 2;
   const isStepItem = change.path.startsWith("steps.")
     && change.path !== "steps.order"
     && change.path.split(".").length === 2;
-  const before = isIngredientItem
+  const before = isIngredientItem || isSeasoningItem
     ? formatIngredientSummary(change.before)
     : isStepItem
       ? formatStepSummary(change.before)
       : formatOrderValue(change.path, change.before, beforeDraft);
-  const after = isIngredientItem
+  const after = isIngredientItem || isSeasoningItem
     ? formatIngredientSummary(change.after)
     : isStepItem
       ? formatStepSummary(change.after)
