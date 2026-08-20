@@ -7,7 +7,7 @@ import { AppIcon } from "@/components/AppIcon";
 import { TimerSetupFields } from "@/components/TimerWheelPicker";
 import { formatScaledIngredientAmount } from "@/domain/amounts";
 import type { Recipe } from "@/domain/recipe";
-import { nextTimerLabel, timerDurationSeconds } from "@/domain/timers";
+import { nextTimerLabel, timerDurationSeconds, timerNumberFromLabel } from "@/domain/timers";
 import {
   deleteCookingSession,
   loadCookingSession,
@@ -16,22 +16,17 @@ import {
 
 import {
   SWIPE_EXCLUDED_SELECTOR,
-  addCookingTimerSeconds,
   completeCookingSession,
   createCookingSession,
   createCookingTimer,
   deleteCookingSessionTimer,
   deriveStepIngredients,
-  finishCookingTimer,
   getSwipeDirection,
   moveCookingStep,
   nextSwipeStepIndex,
-  pauseCookingTimer,
   reconcileCookingTimers,
   remainingTimerSeconds,
   restoreCookingSession,
-  resumeCookingTimer,
-  updateCookingSessionTimer,
   type CookingSession,
   type CookingTimer,
   type SupportedServings,
@@ -75,10 +70,9 @@ function formatClock(seconds: number): string {
   return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, "0")}`;
 }
 
-function timerStatusLabel(timer: CookingTimer): string {
-  if (timer.status === "finished") return "終了";
-  if (timer.status === "paused") return "一時停止中";
-  return "進行中";
+function formatCompactClock(seconds: number): string {
+  const safe = Math.max(0, Math.round(seconds));
+  return `${String(Math.floor(safe / 60)).padStart(2, "0")}:${String(safe % 60).padStart(2, "0")}`;
 }
 
 function touchByIdentifier(touches: React.TouchList, identifier: number): React.Touch | null {
@@ -310,32 +304,31 @@ export function CookingMode({
     const current = sessionRef.current;
     if (!current) return;
     const timestamp = Date.now();
-    const resolvedLabel = label.trim() || nextTimerLabel(current.timers.map((timer) => timer.label));
+    const usedTimerLabels = [
+      ...current.usedTimerNumbers.map((number) => `タイマー${number}`),
+      ...current.timers.map((timer) => timer.label),
+    ];
+    const resolvedLabel = label.trim() || nextTimerLabel(usedTimerLabels);
     const timer = createCookingTimer({ durationSeconds, label: resolvedLabel, sourceStepId }, timestamp);
     if (!timer) {
       setTimerError("タイマーは1秒から24時間までで設定してください");
       return;
     }
     setTimerError("");
-    commitSession({ ...current, timers: [...current.timers, timer], updatedAt: timestamp });
+    const timerNumber = timerNumberFromLabel(resolvedLabel);
+    const usedTimerNumbers = timerNumber !== null && !current.usedTimerNumbers.includes(timerNumber)
+      ? [...current.usedTimerNumbers, timerNumber]
+      : current.usedTimerNumbers;
+    commitSession({ ...current, timers: [...current.timers, timer], usedTimerNumbers, updatedAt: timestamp });
   }, [commitSession]);
 
-  const mutateTimer = useCallback((timerId: string, transform: (timer: CookingTimer) => CookingTimer | null) => {
-    const current = sessionRef.current;
-    if (!current) return;
-    const next = updateCookingSessionTimer(current, timerId, transform, Date.now());
-    if (next !== current) commitSession(next);
-  }, [commitSession]);
-
-  const addMinute = useCallback((timerId: string) => {
-    let refused = false;
-    mutateTimer(timerId, (timer) => {
-      const next = addCookingTimerSeconds(timer, 60);
-      refused = next === null;
-      return next;
-    });
-    setTimerError(refused ? "24時間を超えて追加できません" : "");
-  }, [mutateTimer]);
+  const closeCustomTimerSheet = useCallback(() => {
+    setCustomTimerOpen(false);
+    setCustomLabel("");
+    setCustomMinutes(5);
+    setCustomSeconds(0);
+    setTimerError("");
+  }, []);
 
   const goToStep = useCallback((index: number) => {
     const current = sessionRef.current;
@@ -394,10 +387,7 @@ export function CookingMode({
       return;
     }
     startTimer(duration, customLabel, null);
-    setCustomLabel("");
-    setCustomMinutes(5);
-    setCustomSeconds(0);
-    setCustomTimerOpen(false);
+    closeCustomTimerSheet();
   };
 
   const leaveCooking = async (href: string, clear: boolean) => {
@@ -496,52 +486,6 @@ export function CookingMode({
 
       {storageMessage ? <p className={styles.storageWarning} role="status">{storageMessage}</p> : null}
 
-      {session.timers.length ? (
-        <section className={`${styles.timerShelf} cooking-timers`} data-swipe-ignore aria-labelledby="timer-heading">
-          <h2 id="timer-heading">タイマー</h2>
-          <div className={styles.timerGrid}>
-            {session.timers.map((timer) => {
-              const remaining = remainingTimerSeconds(timer, now || session.updatedAt);
-              return (
-                <article className={styles.timerCard} data-timer-id={timer.id} key={timer.id}>
-                  <div>
-                    <h3>{timer.label}</h3>
-                    <p className={styles.timerClock} aria-label={`残り${formatClock(remaining)}`}>{formatClock(remaining)}</p>
-                    <p>{timerStatusLabel(timer)}</p>
-                  </div>
-                  <div className={styles.timerActions}>
-                    <button
-                      type="button"
-                      disabled={timer.status === "finished"}
-                      onClick={() => mutateTimer(timer.id, (value) => (
-                        value.status === "paused" ? resumeCookingTimer(value, Date.now()) : pauseCookingTimer(value, Date.now())
-                      ))}
-                    >
-                      {timer.status === "paused" ? "再開" : "一時停止"}
-                    </button>
-                    <button type="button" disabled={timer.status === "finished"} onClick={() => addMinute(timer.id)}>+1分</button>
-                    <button
-                      type="button"
-                      disabled={timer.status === "finished"}
-                      onClick={() => mutateTimer(timer.id, (value) => finishCookingTimer(value, Date.now()))}
-                    >
-                      終了
-                    </button>
-                    <button
-                      className={styles.dangerButton}
-                      type="button"
-                      onClick={() => commitSession(deleteCookingSessionTimer(sessionRef.current ?? session, timer.id, Date.now()))}
-                    >
-                      削除
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      ) : null}
-
       {session.status === "completed" ? (
         <section className={styles.completion}>
           <p className={styles.completionMark} aria-hidden="true">✓</p>
@@ -608,28 +552,30 @@ export function CookingMode({
               ) : null}
 
               <section className={`${styles.manualTimer} cooking-timer-form`} data-swipe-ignore aria-labelledby="manual-timer-heading">
-                <div className={styles.manualTimerHeader}>
-                  <h2 id="manual-timer-heading">タイマー</h2>
-                  {!customTimerOpen ? <button type="button" onClick={() => { setTimerError(""); setCustomTimerOpen(true); }}>＋ タイマーを追加</button> : null}
-                </div>
-                {customTimerOpen ? (
-                  <form onSubmit={submitCustomTimer}>
-                    <TimerSetupFields
-                      label={customLabel}
-                      minutes={customMinutes}
-                      seconds={customSeconds}
-                      onLabelChange={setCustomLabel}
-                      onMinutesChange={setCustomMinutes}
-                      onSecondsChange={setCustomSeconds}
-                    />
-                    <div className={styles.manualTimerActions}>
-                      <button type="button" onClick={() => { setCustomTimerOpen(false); setTimerError(""); }}>キャンセル</button>
-                      <button className={styles.secondaryButton} type="submit">タイマーを開始</button>
-                    </div>
-                  </form>
+                <h2 id="manual-timer-heading">タイマー</h2>
+                <button className={styles.addTimerButton} type="button" onClick={() => { setTimerError(""); setCustomTimerOpen(true); }}>＋ タイマーを追加</button>
+                {session.timers.length ? (
+                  <div className={`${styles.compactTimerList} cooking-timers`}>
+                    {session.timers.map((timer) => {
+                      const remaining = remainingTimerSeconds(timer, now || session.updatedAt);
+                      return (
+                        <div className={styles.compactTimer} data-timer-id={timer.id} key={timer.id}>
+                          <span>{timer.label}</span>
+                          <strong aria-label={`残り${formatCompactClock(remaining)}`}>{formatCompactClock(remaining)}</strong>
+                          {timer.status === "finished" ? <em>終了</em> : null}
+                          <button
+                            type="button"
+                            aria-label={`${timer.label}を閉じる`}
+                            onClick={() => commitSession(deleteCookingSessionTimer(sessionRef.current ?? session, timer.id, Date.now()))}
+                          >
+                            <AppIcon name="x" size={13} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : null}
               </section>
-              {timerError ? <p className={styles.timerError} role="alert">{timerError}</p> : null}
             </article>
           </section>
 
@@ -672,6 +618,30 @@ export function CookingMode({
                 return <div key={seasoning.id}><span>{seasoning.name}</span><b>{amount.displayAmount}</b></div>;
               })}</> : null}
             </div>
+          </section>
+        </div>
+      ) : null}
+      {customTimerOpen ? (
+        <div className={styles.materialsSheetLayer} role="dialog" aria-modal="true" aria-label="タイマーを追加">
+          <button type="button" className={styles.materialsBackdrop} aria-label="タイマー追加を閉じる" onClick={closeCustomTimerSheet} />
+          <section className={`${styles.materialsSheet} ${styles.timerSheet}`}>
+            <div className={styles.sheetHandle} />
+            <header><h2>タイマーを追加</h2><button type="button" onClick={closeCustomTimerSheet} aria-label="閉じる"><AppIcon name="x" size={19} /></button></header>
+            <form className={styles.timerSheetForm} onSubmit={submitCustomTimer}>
+              <TimerSetupFields
+                label={customLabel}
+                minutes={customMinutes}
+                seconds={customSeconds}
+                onLabelChange={setCustomLabel}
+                onMinutesChange={setCustomMinutes}
+                onSecondsChange={setCustomSeconds}
+              />
+              {timerError ? <p className={styles.timerError} role="alert">{timerError}</p> : null}
+              <div className={styles.timerSheetActions}>
+                <button type="button" onClick={closeCustomTimerSheet}>キャンセル</button>
+                <button className={styles.primaryButton} type="submit" disabled={timerDurationSeconds(customMinutes, customSeconds) === null}>タイマーを開始</button>
+              </div>
+            </form>
           </section>
         </div>
       ) : null}

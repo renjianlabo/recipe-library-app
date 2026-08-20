@@ -8,6 +8,7 @@ import {
   type AllowedServing,
   type Recipe,
 } from "@/domain/recipe";
+import { timerNumberFromLabel } from "@/domain/timers";
 
 export { deriveStepIngredients } from "@/domain/step-ingredients";
 export type { DerivedStepIngredient } from "@/domain/step-ingredients";
@@ -58,6 +59,7 @@ export interface CookingSession {
   selectedServings: SupportedServings;
   currentStepIndex: number;
   timers: CookingTimer[];
+  usedTimerNumbers: number[];
   status: "active" | "completed";
   startedAt: number;
   updatedAt: number;
@@ -108,6 +110,7 @@ export const cookingSessionSchema = z
     selectedServings: allowedServingSchema,
     currentStepIndex: z.number().int().nonnegative(),
     timers: z.array(cookingTimerSchema),
+    usedTimerNumbers: z.array(z.number().int().positive()).default([]),
     status: z.enum(["active", "completed"]),
     startedAt: z.number().finite().nonnegative(),
     updatedAt: z.number().finite().nonnegative(),
@@ -191,6 +194,7 @@ export function createCookingSession(
     selectedServings,
     currentStepIndex: 0,
     timers: [],
+    usedTimerNumbers: [],
     status: "active",
     startedAt: timestamp,
     updatedAt: timestamp,
@@ -321,7 +325,14 @@ export function moveCookingStep(session: CookingSession, requestedIndex: number,
 export function completeCookingSession(session: CookingSession, now = Date.now()): CookingSession {
   if (session.status === "completed") return session;
   const timestamp = safeNow(now);
-  return { ...session, status: "completed", completedAt: timestamp, updatedAt: timestamp };
+  return {
+    ...session,
+    timers: [],
+    usedTimerNumbers: [],
+    status: "completed",
+    completedAt: timestamp,
+    updatedAt: timestamp,
+  };
 }
 
 export function restoreCookingSession(value: unknown, expectedUid: string, now = Date.now()): CookingSession | null {
@@ -338,7 +349,16 @@ export function restoreCookingSession(value: unknown, expectedUid: string, now =
 
   const maximum = parsed.data.recipe.steps.length - 1;
   const currentStepIndex = Math.min(parsed.data.currentStepIndex, maximum);
-  const restored = { ...parsed.data, currentStepIndex } as CookingSession;
+  const timers = parsed.data.timers.map((timer) => (
+    timer.status === "paused" ? resumeCookingTimer(timer as CookingTimer, now) : timer
+  ));
+  const usedTimerNumbers = Array.from(new Set([
+    ...parsed.data.usedTimerNumbers,
+    ...timers
+      .map((timer) => timerNumberFromLabel(timer.label))
+      .filter((value): value is number => value !== null),
+  ]));
+  const restored = { ...parsed.data, currentStepIndex, timers, usedTimerNumbers } as CookingSession;
   return reconcileCookingTimers(restored, now).session;
 }
 

@@ -140,8 +140,13 @@ describe("cooking sessions", () => {
     expect(moveCookingStep(session, 99, 2_000).currentStepIndex).toBe(1);
     expect(moveCookingStep(session, -1, 2_000).currentStepIndex).toBe(0);
 
-    const completed = completeCookingSession(session, 3_000);
+    const timer = createCookingTimer({ label: "タイマー1", durationSeconds: 60 }, 2_000, "active-timer");
+    if (!timer) throw new Error("timer fixture failed");
+    const completed = completeCookingSession({ ...session, timers: [timer], usedTimerNumbers: [1] }, 3_000);
     expect(completed).toMatchObject({ status: "completed", completedAt: 3_000, updatedAt: 3_000 });
+    expect(completed.timers).toEqual([]);
+    expect(completed.usedTimerNumbers).toEqual([]);
+    expect(completed.recipe.steps[0].timers).toEqual(session.recipe.steps[0].timers);
   });
 
   it("restores with Zod, clamps the step, and rejects wrong users or corrupt state", () => {
@@ -151,6 +156,11 @@ describe("cooking sessions", () => {
     expect(restoreCookingSession(serialized, "user-2", 2_000)).toBeNull();
     expect(restoreCookingSession("{broken", "user-1", 2_000)).toBeNull();
     expect(restoreCookingSession({ ...session, schemaVersion: 99 }, "user-1", 2_000)).toBeNull();
+    const legacySession = { ...session } as Record<string, unknown>;
+    delete legacySession.usedTimerNumbers;
+    expect(restoreCookingSession(legacySession, "user-1", 2_000)?.usedTimerNumbers).toEqual([]);
+    const legacyTimer = createCookingTimer({ label: "タイマー2", durationSeconds: 60 }, 1_000, "legacy-timer");
+    expect(restoreCookingSession({ ...legacySession, timers: [legacyTimer] }, "user-1", 2_000)?.usedTimerNumbers).toEqual([2]);
   });
 
   it("rejects timer references to missing steps", () => {
@@ -213,7 +223,9 @@ describe("timestamp-based multiple timers", () => {
     expect(remainingTimerSeconds(reconciled.session.timers[1], 60_000)).toBe(110);
 
     const restored = restoreCookingSession(JSON.stringify(session), "user-1", 60_000);
-    expect(restored?.timers.map((timer) => timer.status)).toEqual(["finished", "paused"]);
+    expect(restored?.timers.map((timer) => timer.status)).toEqual(["finished", "running"]);
+    if (!restored) throw new Error("session fixture failed to restore");
+    expect(remainingTimerSeconds(restored.timers[1], 60_000)).toBe(110);
   });
 
   it("requires pausedAt and finishedAt for their corresponding persisted states", () => {

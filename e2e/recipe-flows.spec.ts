@@ -233,7 +233,7 @@ test("料理モードのタイマーと工程を途中状態から再開する",
 
   await expect(page.getByRole("heading", { name: "料理モード" })).toBeVisible();
   await page.getByRole("button", { name: "煮込み 2:00 開始" }).click();
-  await expect(page.getByRole("heading", { name: "煮込み" })).toBeVisible();
+  await expect(page.locator("[data-timer-id]", { hasText: "煮込み" })).toBeVisible();
   await page.getByRole("button", { name: "次へ" }).click();
   await expect(page.getByText("工程 2 / 2", { exact: true })).toBeVisible();
   await waitForCookingPersistence(page);
@@ -242,7 +242,7 @@ test("料理モードのタイマーと工程を途中状態から再開する",
   await expect(page.getByRole("heading", { name: "続きから再開しますか？" })).toBeVisible();
   await page.getByRole("button", { name: "続きから再開" }).click();
   await expect(page.getByText("工程 2 / 2", { exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "煮込み" })).toBeVisible();
+  await expect(page.locator("[data-timer-id]", { hasText: "煮込み" })).toBeVisible();
 
   page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "料理モードを終了" }).click();

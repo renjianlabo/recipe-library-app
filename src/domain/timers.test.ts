@@ -6,6 +6,7 @@ import {
   formatTimerDurationJa,
   nextTimerLabel,
   timerDurationSeconds,
+  timerNumberFromLabel,
 } from "./timers";
 
 describe("timer helpers", () => {
@@ -20,6 +21,8 @@ describe("timer helpers", () => {
   it("assigns the first unused sequential default name", () => {
     expect(nextTimerLabel([])).toBe("タイマー1");
     expect(nextTimerLabel(["煮込み", "タイマー1", "タイマー3"])).toBe("タイマー2");
+    expect(timerNumberFromLabel("タイマー12")).toBe(12);
+    expect(timerNumberFromLabel("煮込み")).toBeNull();
   });
 
   it("formats compact Japanese durations", () => {

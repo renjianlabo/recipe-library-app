@@ -1,11 +1,16 @@
 export const TIMER_MINUTE_OPTIONS = Array.from({ length: 61 }, (_, index) => index);
 export const TIMER_SECOND_OPTIONS = [0, 10, 20, 30, 40, 50] as const;
 
+export function timerNumberFromLabel(label: string): number | null {
+  const match = label.trim().match(/^タイマー([1-9]\d*)$/);
+  return match ? Number(match[1]) : null;
+}
+
 export function nextTimerLabel(labels: readonly string[]): string {
   const used = new Set<number>();
   labels.forEach((label) => {
-    const match = label.trim().match(/^タイマー([1-9]\d*)$/);
-    if (match) used.add(Number(match[1]));
+    const timerNumber = timerNumberFromLabel(label);
+    if (timerNumber !== null) used.add(timerNumber);
   });
   let index = 1;
   while (used.has(index)) index += 1;

@@ -12,6 +12,7 @@ import { CookingMode } from "./CookingMode";
 import {
   createCookingSession,
   createCookingTimer,
+  finishCookingTimer,
   moveCookingStep,
   type CookingSession,
 } from "./cooking-core";
@@ -102,6 +103,7 @@ describe("CookingMode", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /全材料を見る/ }));
     const materialsDialog = await screen.findByRole("dialog", { name: "全材料" });
+    const materialsSheetClass = materialsDialog.querySelector("section")?.className;
     expect(within(materialsDialog).getByRole("heading", { name: "調味料" })).toBeInTheDocument();
     expect(within(materialsDialog).getByText("塩")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "閉じる" }));
@@ -111,16 +113,31 @@ describe("CookingMode", () => {
     fireEvent.click(suggestion);
 
     await waitFor(() => {
-      expect(screen.getAllByRole("heading", { name: "炒める" })).toHaveLength(2);
+      expect(document.querySelectorAll("[data-timer-id]")).toHaveLength(2);
     });
-    expect(screen.getAllByRole("button", { name: "一時停止" })).toHaveLength(2);
-    fireEvent.click(screen.getAllByRole("button", { name: "一時停止" })[0]);
-    expect(await screen.findByRole("button", { name: "再開" })).toBeInTheDocument();
+    const timerHeading = screen.getByRole("heading", { name: /^タイマー$/ });
+    const timerSection = timerHeading.closest("section");
+    if (!timerSection) throw new Error("timer section was not rendered");
+    const addButton = within(timerSection).getByRole("button", { name: "＋ タイマーを追加" });
+    const firstTimer = timerSection.querySelector("[data-timer-id]");
+    if (!firstTimer) throw new Error("compact timer row was not rendered");
+    expect(addButton.compareDocumentPosition(firstTimer) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(timerSection).queryByRole("button", { name: /一時停止|再開|\+1分|終了|削除/ })).not.toBeInTheDocument();
+
+    fireEvent.click(within(timerSection).getAllByRole("button", { name: "炒めるを閉じる" })[0]);
+    expect(timerSection.querySelectorAll("[data-timer-id]")).toHaveLength(1);
+
+    fireEvent.click(addButton);
+    const timerDialog = await screen.findByRole("dialog", { name: "タイマーを追加" });
+    expect(timerDialog.querySelector("section")?.className).toContain(String(materialsSheetClass).split(" ")[0]);
+    expect(timerDialog.closest("main")?.querySelector("[aria-describedby='swipe-hint'] form")).toBeNull();
   });
 
   it("completes only through the final button and has no meal logging flow", async () => {
-    render(<CookingMode uid="user-2" recipe={recipe("user-2", "recipe-2")} />);
+    const source = recipe("user-2", "recipe-2");
+    render(<CookingMode uid="user-2" recipe={source} />);
 
+    fireEvent.click(await screen.findByRole("button", { name: "炒める 3:00 開始" }));
     fireEvent.click(await screen.findByRole("button", { name: "次へ" }));
     expect(await screen.findByText("残りの玉ねぎを加える。")).toBeInTheDocument();
     expect(screen.getByText("残り")).toBeInTheDocument();
@@ -130,6 +147,13 @@ describe("CookingMode", () => {
     expect(screen.getByRole("button", { name: "レシピへ戻る" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "料理を終了する" })).toBeInTheDocument();
     expect(screen.queryByText(/食事として記録|食べた/)).not.toBeInTheDocument();
+    expect(document.querySelectorAll("[data-timer-id]")).toHaveLength(0);
+    await waitFor(async () => {
+      const stored = await loadCookingSession<CookingSession>("user-2");
+      expect(stored?.timers).toEqual([]);
+      expect(stored?.usedTimerNumbers).toEqual([]);
+      expect(stored?.recipe.steps[0].timers).toEqual(source.steps[0].timers);
+    });
   });
 
   it("keeps cooking usable when a stored recipe contains an invalid timer suggestion", async () => {
@@ -164,7 +188,7 @@ describe("CookingMode", () => {
     fireEvent.click(screen.getByRole("button", { name: "続きから再開" }));
 
     expect(await screen.findByText("工程 2 / 2")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "保存タイマー" })).toBeInTheDocument();
+    expect(screen.getByText("保存タイマー")).toBeInTheDocument();
   });
 
   it("keeps the current step and concurrent timers when the same recipe version is re-rendered", async () => {
@@ -177,13 +201,34 @@ describe("CookingMode", () => {
     fireEvent.click(screen.getByRole("button", { name: "次へ" }));
 
     expect(await screen.findByText("工程 2 / 2")).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "炒める" })).toHaveLength(2);
+    expect(document.querySelectorAll("[data-timer-id]")).toHaveLength(2);
 
     rerender(<CookingMode uid="user-4" recipe={{ ...source }} />);
 
     expect(screen.queryByRole("heading", { name: "続きから再開しますか？" })).not.toBeInTheDocument();
     expect(screen.getByText("工程 2 / 2")).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "炒める" })).toHaveLength(2);
+    expect(document.querySelectorAll("[data-timer-id]")).toHaveLength(2);
+  });
+
+  it("keeps a finished timer visible as a compact row until its close button is pressed", async () => {
+    const now = Date.now();
+    const source = recipe("user-finished", "recipe-finished");
+    const base = createCookingSession({ uid: "user-finished", recipe: source }, now, "session-finished");
+    const timer = createCookingTimer({ label: "煮込み", durationSeconds: 10 }, now, "timer-finished");
+    if (!timer) throw new Error("timer fixture failed");
+    await saveCookingSession("user-finished", {
+      ...base,
+      timers: [finishCookingTimer(timer, now + 10_000)],
+    });
+
+    render(<CookingMode uid="user-finished" recipe={source} />);
+    fireEvent.click(await screen.findByRole("button", { name: "続きから再開" }));
+
+    expect(screen.getByText("煮込み")).toBeInTheDocument();
+    expect(screen.getByText("00:00")).toBeInTheDocument();
+    expect(screen.getByText("終了")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "煮込みを閉じる" }));
+    expect(screen.queryByText("00:00")).not.toBeInTheDocument();
   });
 
   it("adds automatically named session-only timers with the wheel picker and keeps them across steps", async () => {
@@ -191,35 +236,50 @@ describe("CookingMode", () => {
     render(<CookingMode uid="user-wheel" recipe={source} />);
 
     fireEvent.click(await screen.findByRole("button", { name: "＋ タイマーを追加" }));
-    fireEvent.click(within(screen.getByRole("listbox", { name: "分" })).getByRole("option", { name: "0" }));
-    fireEvent.click(within(screen.getByRole("listbox", { name: "秒" })).getByRole("option", { name: "10" }));
-    fireEvent.click(screen.getByRole("button", { name: "タイマーを開始" }));
-    expect(await screen.findByRole("heading", { name: "タイマー1" })).toBeInTheDocument();
+    let timerDialog = screen.getByRole("dialog", { name: "タイマーを追加" });
+    fireEvent.click(within(timerDialog).getByRole("option", { name: "0", selected: false }));
+    const startButtonAtZero = within(timerDialog).getByRole("button", { name: "タイマーを開始" });
+    expect(startButtonAtZero).toBeDisabled();
+    fireEvent.click(within(timerDialog).getByRole("listbox", { name: "秒" }).querySelector("[role='option']:nth-of-type(2)") as Element);
+    expect(startButtonAtZero).toBeEnabled();
+    fireEvent.click(startButtonAtZero);
+    expect(await screen.findByText("タイマー1")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "タイマーを追加" })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "＋ タイマーを追加" }));
-    fireEvent.click(screen.getByRole("button", { name: "タイマーを開始" }));
-    expect(await screen.findByRole("heading", { name: "タイマー2" })).toBeInTheDocument();
+    timerDialog = screen.getByRole("dialog", { name: "タイマーを追加" });
+    fireEvent.click(within(timerDialog).getByRole("button", { name: "タイマーを開始" }));
+    expect(await screen.findByText("タイマー2")).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-timer-id]")).toHaveLength(2);
 
-    const firstTimerCard = screen.getByRole("heading", { name: "タイマー1" }).closest("article");
-    if (!firstTimerCard) throw new Error("first timer card was not rendered");
-    fireEvent.click(within(firstTimerCard).getByRole("button", { name: "一時停止" }));
-    expect(within(firstTimerCard).getByRole("button", { name: "再開" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "タイマー1を閉じる" }));
+    expect(screen.queryByText("タイマー1")).not.toBeInTheDocument();
+    expect(screen.getByText("タイマー2")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "＋ タイマーを追加" }));
+    timerDialog = screen.getByRole("dialog", { name: "タイマーを追加" });
+    fireEvent.click(within(timerDialog).getByRole("button", { name: "タイマーを開始" }));
+    expect(await screen.findByText("タイマー3")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "次へ" }));
     expect(await screen.findByText("工程 2 / 2")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "タイマー1" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "タイマー2" })).toBeInTheDocument();
+    expect(screen.getByText("タイマー2")).toBeInTheDocument();
+    expect(screen.getByText("タイマー3")).toBeInTheDocument();
 
     await waitFor(async () => {
       const stored = await loadCookingSession<CookingSession>("user-wheel");
       expect(stored?.recipe.steps[0].timers).toEqual(source.steps[0].timers);
       expect(stored?.timers.filter((timer) => timer.sourceStepId === null)).toHaveLength(2);
+      expect(stored?.usedTimerNumbers).toEqual([1, 2, 3]);
     });
 
-    const secondTimerCard = screen.getByRole("heading", { name: "タイマー2" }).closest("article");
-    if (!secondTimerCard) throw new Error("second timer card was not rendered");
-    fireEvent.click(within(firstTimerCard).getByRole("button", { name: "削除" }));
-    expect(screen.queryByRole("heading", { name: "タイマー1" })).not.toBeInTheDocument();
-    expect(within(secondTimerCard).getByRole("heading", { name: "タイマー2" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "タイマー2を閉じる" }));
+    expect(screen.queryByText("タイマー2")).not.toBeInTheDocument();
+    expect(screen.getByText("タイマー3")).toBeInTheDocument();
+    const timerSection = screen.getByRole("heading", { name: /^タイマー$/ }).closest("section");
+    if (!timerSection) throw new Error("timer section was not rendered");
+    for (const removedLabel of ["一時停止", "再開", "+1分", "終了", "削除"]) {
+      expect(within(timerSection).queryByRole("button", { name: new RegExp(`^${removedLabel.replace("+", "\\+")}$`) })).not.toBeInTheDocument();
+    }
   });
 });
