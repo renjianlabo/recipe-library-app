@@ -17,8 +17,6 @@ import {
   type Recipe,
   type RecipeDraft,
 } from "@/domain/recipe";
-import { AiRevisionPanel } from "./AiRevisionPanel";
-import { IngredientImpactDialog } from "./IngredientImpactDialog";
 import { RecipeFieldsEditor } from "./RecipeFieldsEditor";
 import { useDraftAutosave } from "./useDraftAutosave";
 
@@ -67,18 +65,12 @@ export function RecipeEditor({
   const { saveRecipe, saveRecipeAsCopy, getLatestRecipe } = useRecipes();
   const [draft, setDraft] = useState(initialDraft);
   const [baseRecipe, setBaseRecipe] = useState(existingRecipe);
-  const [ingredientToDelete, setIngredientToDelete] = useState<{
-    id: string;
-    kind: "ingredient" | "seasoning";
-  } | null>(null);
-  const [revisionSeed, setRevisionSeed] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<{ attemptedRecipe: Recipe } | null>(null);
   const [servingsConfirmed, setServingsConfirmed] = useState(!needsServingsConfirmation);
   const [recipeId] = useState(() => existingRecipe?.id ?? crypto.randomUUID());
   const autosave = useDraftAutosave({ draftKey, value: draft });
-  const aiRevisionEnabled = Boolean(existingRecipe) || initialDraft.source.type !== "manual";
 
   const setEditorDraft = useCallback((next: RecipeDraft) => {
     if (next.servings !== draft.servings && next.servings !== null) setServingsConfirmed(true);
@@ -92,7 +84,7 @@ export function RecipeEditor({
       return;
     }
     if (draft.servings === null || !servingsConfirmed) {
-      setSaveError("人数を確認して、0.5・1・2・3・4人分から選択してください。");
+      setSaveError("人数を確認して、0.5・1・2・3・4人前から選択してください。");
       return;
     }
     setSaving(true);
@@ -139,7 +131,7 @@ export function RecipeEditor({
 
   return (
     <AuthGate>
-      <main className="page-container editor-page">
+      <main className="page-container editor-page manual-content">
         <header className="flow-header"><Link href={baseRecipe ? `/recipes/${encodeURIComponent(baseRecipe.id)}` : "/add"} aria-label="編集を閉じる"><AppIcon name="x" size={22} /></Link><h1>{heading}</h1></header>
         <p className="manual-lead">{description}</p>
 
@@ -149,55 +141,15 @@ export function RecipeEditor({
         ) : null}
         {autosave.saveError ? <p className="alert warning" role="status">{autosave.saveError}</p> : null}
 
-        <RecipeFieldsEditor
-          draft={draft}
-          onChange={setEditorDraft}
-          onRequestIngredientDelete={(id, kind = "ingredient") => setIngredientToDelete({ id, kind })}
-        />
-
-        {aiRevisionEnabled ? (
-          <AiRevisionPanel
-            draft={draft}
-            onApply={(next) => {
-              setDraft(next);
-              if (next.servings !== null) setServingsConfirmed(true);
-            }}
-            seedInstruction={revisionSeed}
-            onSeedConsumed={() => setRevisionSeed(null)}
-          />
-        ) : null}
+        <RecipeFieldsEditor draft={draft} onChange={setEditorDraft} />
 
         {saveError ? <p className="alert error" role="alert">{saveError}</p> : null}
-        <footer className="editor-save-bar">
-          <div>
-            <strong>{autosave.lastSavedAt ? "端末内へ下書き保存済み" : "入力内容を端末内へ自動保存"}</strong>
-            {autosave.lastSavedAt ? <small>{autosave.lastSavedAt.toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" })}</small> : null}
-          </div>
-          <div className="button-row">
-            <Link className="button" href={baseRecipe ? `/recipes/${encodeURIComponent(baseRecipe.id)}` : "/add"}>キャンセル</Link>
-            <button className="button primary" type="button" disabled={saving} onClick={() => void handleSave()}>
-              {saving ? "保存中…" : saveLabel}
-            </button>
-          </div>
+        <footer className="manual-save">
+          <button className="primary-flow-button" type="button" disabled={saving} onClick={() => void handleSave()}>
+            {saving ? "保存中…" : saveLabel}
+          </button>
+          <small>保存前に必須項目を確認します</small>
         </footer>
-
-        {ingredientToDelete ? (
-          <IngredientImpactDialog
-            draft={draft}
-            ingredientId={ingredientToDelete.id}
-            itemKind={ingredientToDelete.kind}
-            onCancel={() => setIngredientToDelete(null)}
-            onApply={(next) => {
-              setDraft(next);
-              setIngredientToDelete(null);
-            }}
-            onAskAi={aiRevisionEnabled ? (instruction) => {
-              setIngredientToDelete(null);
-              setRevisionSeed(instruction);
-              window.setTimeout(() => document.getElementById("ai-revision")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
-            } : undefined}
-          />
-        ) : null}
 
         {autosave.recoveryState === "available" ? (
           <ModalDialog

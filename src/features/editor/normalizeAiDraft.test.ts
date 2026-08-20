@@ -8,7 +8,7 @@ describe("normalizeAiDraft", () => {
       title: "テスト",
       category: "main",
       servings: null,
-      ingredients: [{ id: "材料 1", name: "油", amountText: "1", numericAmount: 999, unit: "大さじ", note: "" }],
+      ingredients: [{ id: "材料 1", name: "油", amountText: "1 1/2", numericAmount: 999, unit: "大さじ", note: "" }],
       seasonings: [{ id: "調味料 1", name: "塩", amountText: "適宜", numericAmount: null, unit: "", note: "" }],
       steps: [{
         id: "工程 1",
@@ -27,7 +27,7 @@ describe("normalizeAiDraft", () => {
     });
 
     expect(result.servings).toBeNull();
-    expect(result.ingredients[0]).toMatchObject({ id: "ingredient-1", name: "オリーブオイル", numericAmount: 1 });
+    expect(result.ingredients[0]).toMatchObject({ id: "ingredient-1", name: "油", amountText: "1.5", numericAmount: 1.5 });
     expect(result.seasonings?.[0]).toMatchObject({ id: "seasoning-1", name: "塩", amountText: "適宜", numericAmount: null });
     expect(result.steps[0]).toMatchObject({ id: "step-1", order: 1 });
     expect(result.steps[0].ingredientRefs[0].ingredientId).toBe("ingredient-1");

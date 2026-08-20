@@ -50,10 +50,6 @@ vi.mock("@/components/RecipeCard", () => ({ RecipeCard: ({ recipe }: { recipe: R
 vi.mock("@/contexts/RecipeProvider", () => ({
   useRecipes: () => ({ recipes, loading: false, error: null }),
 }));
-vi.mock("@/contexts/PantryProvider", () => ({
-  usePantry: () => ({ selected: new Set<string>(), custom: [], loading: false }),
-}));
-
 afterEach(cleanup);
 
 describe("RecipeBook search controls", () => {
@@ -64,12 +60,13 @@ describe("RecipeBook search controls", () => {
     expect(screen.queryByText("ガーリックトースト")).not.toBeInTheDocument();
   });
 
-  it("combines the category and pantry-seasoning filters from the Figma flow", () => {
+  it("uses category buttons and has no seasoning filter", () => {
     render(<RecipeBook />);
-    fireEvent.click(screen.getByRole("button", { name: "調味料" }));
-    expect(screen.getByText("ニンジンサラダ")).toBeInTheDocument();
-    expect(screen.queryByText("ガーリックトースト")).not.toBeInTheDocument();
-    fireEvent.change(screen.getByRole("combobox", { name: /カテゴリー/ }), { target: { value: "staple" } });
+    expect(screen.queryByRole("button", { name: "調味料" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("combobox", { name: /カテゴリー/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "主食" }));
     expect(screen.queryByText("ニンジンサラダ")).not.toBeInTheDocument();
+    expect(screen.getByText("ガーリックトースト")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "主食" })).toHaveAttribute("aria-pressed", "true");
   });
 });

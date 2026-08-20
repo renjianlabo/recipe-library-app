@@ -1,4 +1,4 @@
-import { normalizeIngredientAmount } from "@/domain/amounts";
+import { formatDecimalAmount, normalizeIngredientAmount } from "@/domain/amounts";
 import { normalizeRecipeDraft, recipeDraftSchema, type RecipeDraft } from "@/domain/recipe";
 
 const VALID_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
@@ -34,7 +34,12 @@ export function normalizeAiDraft(input: unknown): RecipeDraft {
       ingredient.numericAmount,
       ingredient.unit,
     );
-    return { ...ingredient, ...amount, id };
+    return {
+      ...ingredient,
+      ...amount,
+      amountText: amount.numericAmount === null ? amount.amountText : formatDecimalAmount(amount.numericAmount),
+      id,
+    };
   });
   const ingredients = normalizeItems(raw.ingredients, "ingredient");
   const seasonings = normalizeItems(Array.isArray(raw.seasonings) ? raw.seasonings : [], "seasoning");

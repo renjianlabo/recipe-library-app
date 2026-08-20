@@ -33,10 +33,12 @@ export function UnitSelect({
   value,
   onChange,
   label = "単位",
+  compact = false,
 }: {
   value: string;
   onChange: (value: string) => void;
   label?: string;
+  compact?: boolean;
 }) {
   const id = useId();
   const [otherSelectedForEmptyValue, setOtherSelectedForEmptyValue] = useState(false);
@@ -45,8 +47,8 @@ export function UnitSelect({
     : otherSelectedForEmptyValue ? OTHER_UNIT_VALUE : "";
 
   return (
-    <div className="field">
-      <label htmlFor={`${id}-select`}>{label}</label>
+    <div className={compact ? "field unit-field unit-field--compact" : "field unit-field"}>
+      <label className={compact ? "visually-hidden" : undefined} htmlFor={`${id}-select`}>{label}</label>
       <select
         id={`${id}-select`}
         value={selectedValue}

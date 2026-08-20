@@ -42,15 +42,8 @@ export const extractRequestSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("website"), url: z.string().trim().min(1).max(2_048) }),
 ]);
 
-export const reviseRequestSchema = z.strictObject({
-  currentRecipe: recipeDraftSchema,
-  instruction: z.string().trim().min(1).max(10_000),
-  images: z.array(screenshotImageSchema).max(6).optional().default([]),
-});
-
 export type AiModelOutput = z.infer<typeof aiModelOutputSchema>;
 export type ExtractRequest = z.infer<typeof extractRequestSchema>;
-export type ReviseRequest = z.infer<typeof reviseRequestSchema>;
 
 export type AiSuccessResponse = {
   draft: RecipeDraft;

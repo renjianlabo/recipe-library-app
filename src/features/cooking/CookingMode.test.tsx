@@ -95,7 +95,7 @@ describe("CookingMode", () => {
     const ingredientHeading = await screen.findByRole("heading", { name: "この工程で使う材料・調味料" });
     const stepText = screen.getByText("玉ねぎを炒める。");
     expect(stepText.compareDocumentPosition(ingredientHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByText("1/2個（半量）")).toBeInTheDocument();
+    expect(screen.getByText("0.5個（半量）")).toBeInTheDocument();
     expect(screen.getByText("少々")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /全材料を見る/ }));

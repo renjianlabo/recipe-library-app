@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import { cleanAmountText, normalizeIngredientAmount, parseAmountText } from "./amounts";
-import { normalizeOilName, normalizeOilText } from "./oil-normalization";
 import {
   isHttpUrl,
   normalizeRecipeSource,
@@ -377,7 +376,7 @@ export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
     return {
       ...ingredient,
       id: ingredient.id.trim(),
-      name: normalizeOilName(ingredient.name),
+      name: ingredient.name.trim(),
       amountText: amount.amountText,
       numericAmount: amount.numericAmount,
       unit: amount.unit,
@@ -394,7 +393,7 @@ export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
     ...step,
     id: step.id.trim(),
     order: stepIndex + 1,
-    text: normalizeOilText(step.text).trim(),
+    text: step.text.trim(),
     ingredientRefs: step.ingredientRefs.map((reference) => ({
       ingredientId: reference.ingredientId.trim(),
       usage: reference.usage,

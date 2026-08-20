@@ -12,7 +12,6 @@ import {
 
 import { AuthContext, type AuthContextValue } from "@/contexts/AuthProvider";
 import { RecipeContext, type RecipeContextValue } from "@/contexts/RecipeProvider";
-import { PantryProvider } from "@/contexts/PantryProvider";
 import { recipeSchema, type Recipe } from "@/domain/recipe";
 import { RecipeConflictError, type RecipeWriteOptions } from "@/lib/recipe-repository";
 
@@ -160,7 +159,7 @@ export function E2eAppProviders({ children }: { children: ReactNode }) {
   }
   return (
     <E2eAuthProvider>
-      <E2eRecipeProvider><PantryProvider>{children}</PantryProvider></E2eRecipeProvider>
+      <E2eRecipeProvider>{children}</E2eRecipeProvider>
     </E2eAuthProvider>
   );
 }

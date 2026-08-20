@@ -16,7 +16,6 @@ const success = {
 
 const service: AiRecipeService = {
   extract: vi.fn(async () => success),
-  revise: vi.fn(async () => success),
 };
 
 describe("authenticated API handlers", () => {

@@ -63,7 +63,7 @@ describe("amount helpers", () => {
       50, 100, 200, 300, 400,
     ]);
     expect(scaleAmount({ amountText: "1/2", numericAmount: 0.5 }, 2, 3)).toEqual({
-      amountText: "3/4",
+      amountText: "0.75",
       numericAmount: 0.75,
     });
     expect(scaleAmount({ amountText: "ひとつまみ", numericAmount: null }, 1, 4)).toEqual({
@@ -112,9 +112,10 @@ describe("amount helpers", () => {
       displayAmount: "37.5g",
     });
     expect(formatScaledIngredientAmount({ amountText: "1", numericAmount: 1, unit: "個" }, 2, 1)).toEqual({
-      amountText: "1/2",
+      amountText: "0.5",
       unit: "個",
-      displayAmount: "1/2個",
+      displayAmount: "0.5個",
     });
+    expect(formatScaledIngredientAmount({ amountText: "1.5", numericAmount: 1.5, unit: "個" }, 2, 2).displayAmount).toBe("1.5個");
   });
 });

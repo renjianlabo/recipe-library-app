@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { ApiError, errorResponse } from "./api-error";
 import { createAiRecipeService, type AiRecipeService } from "./ai-service";
-import { extractRequestSchema, reviseRequestSchema } from "./ai-schema";
+import { extractRequestSchema } from "./ai-schema";
 import { authenticateRequest, type AuthenticatedUser } from "./auth";
 import { createRateLimiter, environmentRateLimit, type RateLimiter } from "./rate-limit";
 
@@ -72,28 +72,6 @@ export function createExtractHandler(options: {
       });
     } catch (error) {
       return errorResponse(error, "ai.extract");
-    }
-  };
-}
-
-export function createReviseHandler(options: {
-  authenticate?: Authenticator;
-  rateLimit?: RateLimiter;
-  service?: AiRecipeService;
-} = {}) {
-  const authenticate = options.authenticate ?? authenticateRequest;
-  const rateLimit = options.rateLimit ?? aiRateLimiter;
-  const service = options.service ?? createAiRecipeService();
-  return async (request: Request): Promise<Response> => {
-    try {
-      const user = await authenticate(request);
-      rateLimit(`ai:revise:${user.uid}`);
-      const input = parsedOrThrow(reviseRequestSchema, await readJson(request, AI_REQUEST_MAX_BYTES));
-      return Response.json(await service.revise(input), {
-        headers: { "Cache-Control": "no-store" },
-      });
-    } catch (error) {
-      return errorResponse(error, "ai.revise");
     }
   };
 }

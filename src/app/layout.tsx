@@ -6,7 +6,6 @@ import { PwaRegister } from "@/components/PwaRegister";
 import { AuthProvider } from "@/contexts/AuthProvider";
 import { E2eAppProviders } from "@/e2e/E2eAppProviders";
 import { RecipeProvider } from "@/contexts/RecipeProvider";
-import { PantryProvider } from "@/contexts/PantryProvider";
 
 import "./globals.css";
 
@@ -56,7 +55,7 @@ export default function RootLayout({
           <E2eAppProviders>{content}</E2eAppProviders>
         ) : (
           <AuthProvider>
-            <RecipeProvider><PantryProvider>{content}</PantryProvider></RecipeProvider>
+            <RecipeProvider>{content}</RecipeProvider>
           </AuthProvider>
         )}
       </body>

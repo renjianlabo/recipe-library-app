@@ -67,8 +67,8 @@ describe("recipe schemas", () => {
 
   it("normalizes a draft and finalizes a strict saved recipe", () => {
     const normalized = normalizeRecipeDraft(validDraft({ tags: [" 時短 ", "時短"] }));
-    expect(normalized.ingredients[0].name).toBe("オリーブオイル");
-    expect(normalized.steps[0].text).toContain("オリーブオイル");
+    expect(normalized.ingredients[0].name).toBe("サラダ油");
+    expect(normalized.steps[0].text).toContain("サラダ油");
     expect(normalized.tags).toEqual(["時短"]);
 
     const recipe = finalizeRecipeDraft(normalized, metadata);

@@ -178,9 +178,10 @@ export function formatScaledIngredientAmount(
   const scale = savedServings > 0 && Number.isFinite(savedServings)
     ? selectedServings / savedServings
     : 1;
-  const amountText = ingredient.numericAmount === null
+  const multiplierIsOne = Math.abs(scale * multiplier - 1) < 1e-9;
+  const amountText = ingredient.numericAmount === null || multiplierIsOne
     ? cleanAmountText(ingredient.amountText)
-    : formatIngredientAmount(ingredient.numericAmount * scale * multiplier, unit);
+    : formatDecimalAmount(ingredient.numericAmount * scale * multiplier);
   return { amountText, unit, displayAmount: formatAmountWithUnit(amountText, unit) };
 }
 
@@ -231,5 +232,5 @@ export function scaleAmount(
   if (fromServings === toServings) return { ...value, numericAmount };
 
   const scaled = numericAmount * (toServings / fromServings);
-  return { amountText: formatAmount(scaled), numericAmount: scaled };
+  return { amountText: formatDecimalAmount(scaled), numericAmount: scaled };
 }

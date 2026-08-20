@@ -7,7 +7,6 @@ import {
   type AiSuccessResponse,
   type ExtractRequest,
   type RecipeDraft,
-  type ReviseRequest,
 } from "./ai-schema";
 import {
   createGeminiRecipeGenerator,
@@ -28,7 +27,8 @@ const BASE_SYSTEM_INSTRUCTION = `あなたはレシピ情報の厳格な抽出�
 工程タイトルは作らず、工程本文と材料参照を分けてください。
 食材はingredients（材料）、調味料・油・香辛料・だし類はseasonings（調味料）へ分け、同じ項目を両方へ重複させないでください。
 ingredientsとseasoningsのIDは互いに重複させず、工程のingredientRefsを該当するIDと必ず一致させてください。
-サラダ油、米油、菜種油、キャノーラ油、植物油、単なる油はオリーブオイルに統一し、ごま油は維持してください。
+分量は基本的に分数を使わず、小数で表現してください（例: 1/2ではなく0.5、1 1/2ではなく1.5）。
+材料名・調味料名の表記は入力元を尊重し、同義語へ勝手に置き換えないでください。
 返答は指定されたJSON Schemaだけに従ってください。`;
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -38,7 +38,6 @@ type Source = RecipeDraft["source"];
 
 export type AiRecipeService = {
   extract: (request: ExtractRequest) => Promise<AiSuccessResponse>;
-  revise: (request: ReviseRequest) => Promise<AiSuccessResponse>;
 };
 
 function normalizedImages(images: Array<{ data: string; mimeType: string }>): InteractionContent[] {
@@ -79,7 +78,7 @@ function finalizeOutput(output: AiModelOutput, source: Source, extraWarnings: st
   const needsServingsConfirmation = !draftServingsAllowed || (detectedServings !== null && !detectedAllowed);
   const warnings = [...output.warnings, ...extraWarnings];
   if (needsServingsConfirmation) {
-    warnings.push("人数を0.5、1、2、3、4人分から選んでください。検出した人数を勝手に丸めていません。");
+    warnings.push("人数を0.5、1、2、3、4人前から選んでください。検出した人数を勝手に丸めていません。");
   }
 
   return {
@@ -151,20 +150,6 @@ export function createAiRecipeService(options: {
         expectedUrlContext: safeUrl.href,
       });
       return finalizeOutput(output, { type: "website", url: safeUrl.href });
-    },
-
-    async revise(request) {
-      const output = await generator.generate({
-        systemInstruction: `${BASE_SYSTEM_INSTRUCTION}\nこれは新規抽出ではなく、現在のレシピの限定修正です。修正指示に関係する項目だけを変更し、指定されていない材料・工程・出典を作り直さないでください。`,
-        input: [
-          {
-            type: "text",
-            text: `現在のレシピ:\n${JSON.stringify(request.currentRecipe)}\n\n修正指示:\n${request.instruction}`,
-          },
-          ...normalizedImages(request.images),
-        ],
-      });
-      return finalizeOutput(output, request.currentRecipe.source);
     },
   };
 }

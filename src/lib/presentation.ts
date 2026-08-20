@@ -15,5 +15,5 @@ export const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS) as Array<[
 ]>;
 
 export function servingsLabel(servings: Recipe["servings"]): string {
-  return `${servings}人分`;
+  return `${servings}人前`;
 }

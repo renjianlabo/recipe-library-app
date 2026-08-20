@@ -67,11 +67,11 @@ describe("legacy recipe migration", () => {
 
     const recipe = result.recipes[0];
     expect(recipe.ingredients.map((ingredient) => ingredient.id)).toEqual(["ingredient-1", "ingredient-2"]);
-    expect(recipe.ingredients[0].name).toBe("オリーブオイル");
+    expect(recipe.ingredients[0].name).toBe("サラダ油");
     expect(recipe.steps.map((step) => step.order)).toEqual([1, 2]);
     expect(recipe.steps[0]).toMatchObject({
       id: "step-1",
-      text: "オリーブオイルを熱する。",
+      text: "サラダ油を熱する。",
       ingredientRefs: [{ ingredientId: "ingredient-1", usage: "all" }],
     });
     expect("title" in recipe.steps[1]).toBe(false);

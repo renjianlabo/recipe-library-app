@@ -49,7 +49,7 @@ describe("SettingsHome", () => {
 
     expect(screen.getByText("データを書き出す")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /バックアップから復元/ })).toHaveAttribute("href", "/settings/data");
-    expect(screen.getByRole("link", { name: /家にある調味料/ })).toHaveAttribute("href", "/settings/seasonings");
+    expect(screen.queryByText("家にある調味料")).not.toBeInTheDocument();
     expect(await screen.findByText("利用可能")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledWith("/api/ai/status", expect.objectContaining({
       method: "GET",

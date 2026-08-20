@@ -90,35 +90,42 @@ async function waitForCookingPersistence(page: Page) {
 
 test("手動作成から保存・一覧・詳細・編集まで完了する", async ({ page }) => {
   await page.goto("/recipes/new");
-  await expect(page.getByRole("heading", { name: "手動でレシピを作成" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "レシピを作成" })).toBeVisible();
   await expect(page.getByText("AIに追加修正を頼む", { exact: true })).not.toBeVisible();
   await expect(page.getByLabel("修正指示", { exact: true })).not.toBeVisible();
   await expect(page.getByRole("button", { name: "修正案を作る" })).not.toBeVisible();
 
-  await page.getByLabel("レシピ名 *", { exact: true }).fill("E2E卵焼き");
-  await page.getByRole("combobox", { name: "分類 *", exact: true }).selectOption("main");
-  await page.getByLabel("材料名 *", { exact: true }).fill("卵");
-  await page.getByLabel("分量 *", { exact: true }).fill("適量");
-  await page.getByRole("button", { name: "調味料を追加" }).click();
-  const seasoning = page.locator("article.editor-item").filter({ hasText: "調味料 1" });
-  await seasoning.getByLabel("調味料名 *", { exact: true }).fill("しょうゆ");
-  await seasoning.getByLabel("分量 *", { exact: true }).fill("1/2");
-  await seasoning.getByLabel("単位", { exact: true }).selectOption("大さじ");
-  await seasoning.getByLabel("補足", { exact: true }).fill("仕上げ用");
-  await page.getByLabel("工程本文 *", { exact: true }).fill("卵を混ぜて焼く。");
-  await page.getByRole("checkbox", { name: "卵" }).check();
-  await page.getByRole("checkbox", { name: "しょうゆ" }).check();
-  await page.getByRole("button", { name: "タイマーを追加" }).click();
-  await page.getByLabel("名前", { exact: true }).fill("焼き時間");
-  await page.getByLabel("分", { exact: true }).fill("3");
+  await page.getByLabel("料理名 ＊", { exact: true }).fill("E2E卵焼き");
+  await page.getByRole("combobox", { name: "カテゴリー ＊", exact: true }).selectOption("main");
+  await page.getByLabel("材料名", { exact: true }).fill("卵");
+  await page.getByLabel("分量", { exact: true }).fill("1.5");
+  await page.getByRole("combobox", { name: "材料1の単位" }).selectOption("個");
+  await page.getByRole("button", { name: "＋ 調味料を追加" }).click();
+  const seasoning = page.getByTestId("調味料-1");
+  await seasoning.getByLabel("調味料名", { exact: true }).fill("しょうゆ");
+  await seasoning.getByLabel("分量", { exact: true }).fill("適量");
+  await page.getByLabel("手順1", { exact: true }).fill("卵を混ぜて焼く。");
+  for (let index = 0; index < 5; index += 1) {
+    await page.getByRole("button", { name: "＋ 手順を追加" }).click();
+    await page.getByLabel(`手順${index + 2}`, { exact: true }).fill(`追加の工程${index + 2}です。`);
+  }
 
   await page.getByRole("button", { name: "レシピを保存" }).click();
   await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
   await expect(page.getByRole("heading", { name: "E2E卵焼き" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "調味料" })).toBeVisible();
+  await expect(page.getByText("1.5個", { exact: true })).toBeVisible();
   await expect(page.getByText("適量", { exact: true })).toBeVisible();
-  await expect(page.getByText("大さじ1/2", { exact: true })).toBeVisible();
+  const actionPosition = await page.locator(".detail-actions").boundingBox();
+  await page.locator(".detail-scroll").evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  const scrolledActionPosition = await page.locator(".detail-actions").boundingBox();
+  expect(scrolledActionPosition?.y).toBe(actionPosition?.y);
+  const lastStepBottom = await page.locator(".detail-steps li:last-child").evaluate((element) => element.getBoundingClientRect().bottom);
+  expect(lastStepBottom).toBeLessThanOrEqual(scrolledActionPosition?.y ?? 0);
+  await expect(page.getByRole("link", { name: "編集する", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "料理モードを開始" })).toBeVisible();
 
+  await page.locator(".detail-scroll").evaluate((element) => { element.scrollTop = 0; });
   await page.getByRole("link", { name: "レシピ一覧を閉じる" }).click();
   await expect(page).toHaveURL(/\/recipes$/);
   await page.getByRole("link", { name: /E2E卵焼き/ }).click();
@@ -126,7 +133,7 @@ test("手動作成から保存・一覧・詳細・編集まで完了する", as
 
   await page.getByRole("link", { name: "編集する", exact: true }).click();
   await expect(page.getByRole("heading", { name: "レシピを編集" })).toBeVisible();
-  await page.getByLabel("レシピ名 *", { exact: true }).fill("E2Eだし巻き卵");
+  await page.getByLabel("料理名 ＊", { exact: true }).fill("E2Eだし巻き卵");
   await page.getByRole("button", { name: "変更を保存" }).click();
   await expect(page.getByRole("heading", { name: "E2Eだし巻き卵" })).toBeVisible();
 
@@ -179,82 +186,24 @@ test("文章取り込みを確認して保存する", async ({ page }) => {
   await page.getByRole("button", { name: "文章を解析" }).click();
 
   await expect(page.getByRole("heading", { name: "内容を確認" })).toBeVisible();
-  await expect(page.getByLabel("レシピ名 *", { exact: true })).toHaveValue("文章からの味噌汁");
+  await expect(page.getByLabel("料理名 ＊", { exact: true })).toHaveValue("文章からの味噌汁");
+  await expect(page.getByLabel("分量", { exact: true }).first()).toHaveValue("30");
+  await expect(page.getByLabel("修正指示", { exact: true })).not.toBeVisible();
   await expect(page.getByText("内容を確認してください。", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "レシピを保存" }).click();
   await expect(page.getByRole("heading", { name: "文章からの味噌汁" })).toBeVisible();
 });
 
-test("AI修正の差分を確認してから反映する", async ({ page }) => {
-  const seeded = recipe({ id: "ai-revision", title: "修正前の炒め物" });
-  await seedRecipes(page, [seeded]);
-  await page.route("**/api/ai/revise", async (route) => {
-    expect(route.request().headers().authorization).toBe("Bearer e2e-test-token");
-    const payload = await route.request().postDataJSON() as { currentRecipe: RecipeDraft };
-    const revised: RecipeDraft = {
-      ...payload.currentRecipe,
-      title: "AI修正後の炒め物",
-      steps: payload.currentRecipe.steps.map((step, index) => index === 0 ? {
-        ...step,
-        timers: [...step.timers, { id: "timer-ai", label: "仕上げ", seconds: 30 }],
-      } : step),
-    };
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        draft: revised,
-        warnings: [],
-        needsServingsConfirmation: false,
-        detectedServings: 2,
-      }),
-    });
-  });
-
-  await page.goto(`/recipes/${seeded.id}/edit`);
-  await page.getByLabel("修正指示", { exact: true }).fill("名前を分かりやすくし、仕上げタイマーを追加して");
-  await page.getByRole("button", { name: "修正案を作る" }).click();
-
-  const diffPanel = page.locator(".diff-panel");
-  await expect(diffPanel.getByRole("heading", { name: "AIによる変更内容" })).toBeVisible();
-  await expect(diffPanel).toContainText("修正前の炒め物");
-  await expect(diffPanel).toContainText("AI修正後の炒め物");
-  await expect(diffPanel).toContainText("仕上げ（30秒）を追加");
-  await page.getByRole("button", { name: "変更を反映する" }).click();
-  await expect(page.getByLabel("レシピ名 *", { exact: true })).toHaveValue("AI修正後の炒め物");
-  await expect(page.getByLabel("名前", { exact: true }).last()).toHaveValue("仕上げ");
-});
-
-test("材料削除前に関連工程を確認し編集結果を反映する", async ({ page }) => {
+test("編集画面では材料を直接削除し既存の自由入力単位を保持する", async ({ page }) => {
   const seeded = recipe({ id: "ingredient-impact" });
   await seedRecipes(page, [seeded]);
   await page.goto(`/recipes/${seeded.id}/edit`);
 
-  const secondIngredient = page.locator("article.editor-item").filter({
-    has: page.getByText("材料 2", { exact: true }),
-  });
-  await secondIngredient.getByRole("button", { name: "削除", exact: true }).click();
-
-  const dialog = page.getByRole("dialog", { name: "「にんにく」を削除しますか" });
-  await expect(dialog).toBeVisible();
-  const firstImpact = dialog.locator("article.impact-item").filter({
-    hasText: "にんじんとにんにくを一緒に炒める。",
-  });
-  const secondImpact = dialog.locator("article.impact-item").filter({
-    hasText: "にんにくを加えて香りが立つまで炒める。",
-  });
-  await expect(secondImpact.getByRole("combobox")).toHaveValue("delete");
-  await firstImpact.getByRole("combobox").selectOption("remove-name");
-  const preview = firstImpact.getByRole("textbox", { name: "工程の編集結果" });
-  await expect(preview).toHaveValue("にんじんを一緒に炒める。");
-  await preview.fill("にんじんを弱火で炒める。");
-  await dialog.getByRole("button", { name: "選択内容で削除" }).click();
-
-  await expect(dialog).not.toBeVisible();
-  await expect(page.getByLabel("材料名 *", { exact: true })).toHaveCount(1);
-  const remainingStep = page.getByRole("textbox", { name: "工程本文 *", exact: true });
-  await expect(remainingStep).toHaveCount(1);
-  await expect(remainingStep).toHaveValue("にんじんを弱火で炒める。");
+  await expect(page.getByRole("combobox", { name: "材料2の単位" })).toHaveValue("__other_unit__");
+  await expect(page.getByLabel("その他の単位").last()).toHaveValue("片");
+  await page.getByRole("button", { name: "材料2を削除" }).click();
+  await expect(page.getByLabel("材料名", { exact: true })).toHaveCount(1);
+  await expect(page.getByLabel("手順1", { exact: true })).toHaveValue("にんじんとにんにくを一緒に炒める。");
 });
 
 test("料理モードのタイマーと工程を途中状態から再開する", async ({ page }) => {

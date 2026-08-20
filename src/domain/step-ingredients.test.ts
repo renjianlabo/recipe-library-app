@@ -65,9 +65,9 @@ describe("deriveStepIngredients", () => {
     const source = recipe();
     expect(deriveStepIngredients(source, source.steps[0], 1).map((item) => item.displayAmount)).toEqual([
       "37.5g",
-      "1/2個",
-      "大さじ1/2",
-      "1/6カップ",
+      "0.5個",
+      "大さじ0.5",
+      "0.167カップ",
       "少々",
     ]);
   });

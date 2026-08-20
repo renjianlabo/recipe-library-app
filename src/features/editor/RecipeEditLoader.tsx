@@ -39,7 +39,7 @@ export function RecipeEditLoader({ recipeId }: { recipeId: string }) {
       existingRecipe={recipe}
       draftKey={`edit-${recipe.id}`}
       heading="レシピを編集"
-      description="材料と工程の関連付けを保ったまま変更できます。"
+      description="基本情報から順に、必要な項目を編集しましょう。"
     />
   );
 }

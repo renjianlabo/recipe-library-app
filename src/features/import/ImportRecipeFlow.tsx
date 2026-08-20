@@ -123,7 +123,7 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
         initialDraft={candidate}
         draftKey={`ai-${mode}-${importSessionId}`}
         heading="内容を確認"
-        description="この内容はまだ保存されていません。すべての項目を確認し、必要なら手動またはAIで修正してください。"
+        description="この内容はまだ保存されていません。すべての項目を確認し、必要なら手動で修正してください。"
         warnings={warnings}
         needsServingsConfirmation={needsServingsConfirmation}
       />

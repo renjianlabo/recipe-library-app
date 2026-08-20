@@ -5,7 +5,6 @@ import {
   normalizeIngredientAmount,
   parseAmountText,
 } from "./amounts";
-import { normalizeOilName, normalizeOilText } from "./oil-normalization";
 import {
   finalizeRecipeDraft,
   normalizeRecipeDraft,
@@ -160,7 +159,7 @@ function migrateIngredients(
       reasons.push(`ingredients.${index}: 材料がオブジェクトではありません`);
       return;
     }
-    const name = normalizeOilName(cleanString(value.name));
+    const name = cleanString(value.name);
     if (!name) {
       reasons.push(`ingredients.${index}.name: 材料名がありません`);
       return;
@@ -249,7 +248,7 @@ function resolveStepIngredient(
   context: RecipeMigrationContext,
 ): Ingredient | null {
   if (typeof value === "string") {
-    const matches = nameMap.get(normalizeSearchText(normalizeOilName(value))) ?? [];
+    const matches = nameMap.get(normalizeSearchText(value)) ?? [];
     if (matches.length === 1) return matches[0];
     warning(context, path, matches.length ? "ambiguous_ingredient" : "unknown_ingredient", `工程材料「${value}」を一意に解決できません`);
     return null;
@@ -265,7 +264,7 @@ function resolveStepIngredient(
     const byId = ingredients.find((ingredient) => ingredient.id === migratedId);
     if (byId) return byId;
   }
-  const name = normalizeOilName(cleanString(value.name ?? value.ingredient ?? value.label));
+  const name = cleanString(value.name ?? value.ingredient ?? value.label);
   const matches = nameMap.get(normalizeSearchText(name)) ?? [];
   if (matches.length === 1) return matches[0];
   warning(context, path, matches.length ? "ambiguous_ingredient" : "unknown_ingredient", `工程材料「${name || legacyId || "名称なし"}」を一意に解決できません`);
@@ -382,7 +381,7 @@ function migrateSteps(
 
   input.forEach((value, legacyIndex) => {
     if (typeof value === "string") {
-      const text = normalizeOilText(value).trim();
+      const text = value.trim();
       if (!text) {
         warning(context, `steps.${legacyIndex}`, "empty_step", "空の工程を除外しました");
         return;
@@ -402,9 +401,9 @@ function migrateSteps(
       return;
     }
 
-    const text = normalizeOilText(cleanString(
+    const text = cleanString(
       value.text ?? value.instruction ?? value.description ?? value.body,
-    )).trim();
+    ).trim();
     if (!text) {
       warning(context, `steps.${legacyIndex}`, "missing_step_text", "工程タイトルは本文へ転用せず、本文のない工程を除外しました");
       return;

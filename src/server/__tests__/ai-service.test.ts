@@ -31,6 +31,8 @@ describe("AI extraction service", () => {
       uri: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     });
     expect(generate.mock.calls[0][0].systemInstruction).toContain("ingredients（材料）、調味料・油・香辛料・だし類はseasonings（調味料）");
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("1/2ではなく0.5");
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("同義語へ勝手に置き換えない");
   });
 
   it("does not call Gemini when YouTube metadata retrieval fails", async () => {
@@ -61,24 +63,6 @@ describe("AI extraction service", () => {
     const result = await safe.extract({ type: "website", url: "https://recipe.example/page#steps" });
     expect(result.draft.source).toEqual({ type: "website", url: "https://recipe.example/page" });
     expect(generate.mock.calls[0][0].expectedUrlContext).toBe("https://recipe.example/page");
-  });
-
-  it("revises only the current draft and preserves its source", async () => {
-    const generate = vi.fn<RecipeGenerator["generate"]>(async () => modelOutput({
-      draft: recipeDraft({ title: "修正版", source: { type: "text", url: null } }),
-    }));
-    const service = createAiRecipeService({ generator: { generate } });
-    const currentRecipe = recipeDraft({
-      source: { type: "website", url: "https://recipe.example/original" },
-    });
-    const result = await service.revise({
-      currentRecipe,
-      instruction: "最後の工程だけ短くして",
-      images: [],
-    });
-    expect(result.draft.source).toEqual(currentRecipe.source);
-    expect(generate.mock.calls[0][0].systemInstruction).toContain("限定修正");
-    expect((generate.mock.calls[0][0].input[0] as { text: string }).text).toContain("最後の工程だけ短くして");
   });
 
   it("does not round unsupported detected servings", async () => {
