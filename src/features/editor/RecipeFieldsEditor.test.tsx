@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 
@@ -49,5 +49,29 @@ describe("RecipeFieldsEditor", () => {
     ]);
     expect(screen.queryByText("AIに追加修正を頼む")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("修正指示")).not.toBeInTheDocument();
+    expect(screen.queryByText("工程タイトルは不要です")).not.toBeInTheDocument();
+  });
+
+  it("adds, edits, and removes optional step timers with automatic names", () => {
+    render(<Harness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "＋ タイマーを設定" }));
+    fireEvent.change(screen.getByLabelText("タイマー名"), { target: { value: "煮込み" } });
+    fireEvent.click(within(screen.getByRole("listbox", { name: "分" })).getByRole("option", { name: "10" }));
+    fireEvent.click(within(screen.getByRole("listbox", { name: "秒" })).getByRole("option", { name: "30" }));
+    fireEvent.click(screen.getByRole("button", { name: "設定する" }));
+    expect(screen.getByText("煮込み").closest(".step-timer-summary")).toHaveTextContent("煮込み 10分30秒");
+
+    fireEvent.click(screen.getByRole("button", { name: "＋ タイマーを設定" }));
+    fireEvent.click(screen.getByRole("button", { name: "設定する" }));
+    expect(screen.getByText("タイマー1").closest(".step-timer-summary")).toHaveTextContent("タイマー1 5分");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "編集" })[1]);
+    fireEvent.change(screen.getByLabelText("タイマー名"), { target: { value: "蒸らし" } });
+    fireEvent.click(screen.getByRole("button", { name: "変更する" }));
+    expect(screen.getByText("蒸らし").closest(".step-timer-summary")).toHaveTextContent("蒸らし 5分");
+
+    fireEvent.click(screen.getAllByRole("button", { name: "削除" })[0]);
+    expect(screen.queryByText("煮込み")).not.toBeInTheDocument();
   });
 });

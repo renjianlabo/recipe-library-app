@@ -209,4 +209,23 @@ describe("recipe schemas", () => {
     expect(normalized.seasonings?.map((item) => item.id)).toEqual(["seasoning-1"]);
     expect(recipeDraftSchema.safeParse(normalized).success).toBe(true);
   });
+
+  it("assigns the first unused timer name only when a saved step timer has no name", () => {
+    const draft = validDraft({
+      steps: [{
+        ...validDraft().steps[0],
+        timers: [
+          { id: "timer-1", label: "タイマー1", seconds: 60 },
+          { id: "timer-2", label: "", seconds: 90 },
+          { id: "timer-3", label: "蒸らし", seconds: 120 },
+        ],
+      }],
+    });
+
+    expect(normalizeRecipeDraft(draft).steps[0].timers).toEqual([
+      { id: "timer-1", label: "タイマー1", seconds: 60 },
+      { id: "timer-2", label: "タイマー2", seconds: 90 },
+      { id: "timer-3", label: "蒸らし", seconds: 120 },
+    ]);
+  });
 });

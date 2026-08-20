@@ -217,11 +217,28 @@
   gap: 8px;
 }
 
-.manualTimer summary {
-  min-height: 44px;
+.manualTimerHeader {
   display: flex;
   align-items: center;
-  cursor: pointer;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.manualTimerHeader h2 {
+  margin: 0;
+  color: #5e594e;
+  font-size: 0.88rem;
+}
+
+.manualTimerHeader button {
+  min-height: 36px;
+  padding: 7px 10px;
+  border: 1px solid #f0d5c9;
+  border-radius: 11px;
+  background: #fff8f4;
+  color: #a35c42;
+  font: inherit;
+  font-size: 0.78rem;
   font-weight: 700;
 }
 
@@ -229,6 +246,24 @@
   display: grid;
   gap: 12px;
   margin-top: 14px;
+}
+
+.manualTimerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.manualTimerActions > button {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid #d2cec3;
+  border-radius: 11px;
+  background: #fff;
+  color: #635f57;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
 .manualTimer label {
@@ -624,7 +659,7 @@
 
 .materialsSheet h2 { margin: 0; font-size: 17px; }
 .materialsSheet header button { display: grid; width: 31px; height: 31px; place-items: center; border: 0; border-radius: 50%; background: #f3f3ed; color: #66675f; }
-.sheetMaterialList { flex: 1; overflow-y: auto; padding-top: 6px; }
+.sheetMaterialList { flex: 1; overflow-y: auto; padding: 6px 18px 0 0; }
 .sheetMaterialList h3 { margin: 14px 2px 2px; color: #597156; font-size: 12px; }
 .sheetMaterialList div { display: flex; justify-content: space-between; padding: 12px 2px; border-bottom: 1px solid #e9e8df; color: #55564e; font-size: 13px; }
 .sheetMaterialList b { color: #62635b; }

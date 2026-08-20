@@ -6,6 +6,7 @@ import {
   normalizeRecipeSource,
   RECIPE_SOURCE_TYPES,
 } from "./source";
+import { nextTimerLabel } from "./timers";
 
 export { ALLOWED_SERVINGS } from "./amounts";
 export type { AllowedServing } from "./amounts";
@@ -388,6 +389,7 @@ export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
   });
   const ingredients = normalizeItems(draft.ingredients);
   const seasonings = normalizeItems(draft.seasonings ?? []);
+  const timerLabels = draft.steps.flatMap((step) => step.timers.map((timer) => timer.label.trim()).filter(Boolean));
 
   const steps = draft.steps.map((step, stepIndex) => ({
     ...step,
@@ -401,12 +403,16 @@ export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
         ? { customAmountText: cleanAmountText(reference.customAmountText) }
         : {}),
     })),
-    timers: step.timers.map((timer) => ({
-      ...timer,
-      id: timer.id.trim(),
-      label: timer.label.normalize("NFKC").trim(),
-      seconds: Math.round(timer.seconds),
-    })),
+    timers: step.timers.map((timer) => {
+      const label = timer.label.normalize("NFKC").trim() || nextTimerLabel(timerLabels);
+      timerLabels.push(label);
+      return {
+        ...timer,
+        id: timer.id.trim(),
+        label,
+        seconds: Math.round(timer.seconds),
+      };
+    }),
   }));
 
   const normalized: RecipeDraft = {

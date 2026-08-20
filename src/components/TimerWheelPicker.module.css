@@ -1,0 +1,118 @@
+.field {
+  display: grid;
+  gap: 7px;
+}
+
+.fieldLabel {
+  color: #55564f;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.nameInput {
+  width: 100%;
+  height: 43px;
+  padding: 0 11px;
+  border: 1px solid #e9e8df;
+  border-radius: 12px;
+  outline: 0;
+  background: #fff;
+  color: #272821;
+  font-size: 16px;
+}
+
+.nameInput:focus {
+  border-color: #dda189;
+  box-shadow: 0 0 0 3px rgb(223 107 71 / 9%);
+}
+
+.timeRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.wheelField {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wheel {
+  position: relative;
+  width: 64px;
+  height: 120px;
+  overflow: hidden;
+  border: 1px solid #e7e3da;
+  border-radius: 14px;
+  background: linear-gradient(#faf9f5, #fff 33%, #fff 67%, #faf9f5);
+}
+
+.wheel::before,
+.wheel::after {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  left: 0;
+  height: 39px;
+  pointer-events: none;
+  content: "";
+}
+
+.wheel::before { top: 0; background: linear-gradient(#faf9f5 10%, rgb(250 249 245 / 24%)); }
+.wheel::after { bottom: 0; background: linear-gradient(rgb(250 249 245 / 24%), #faf9f5 90%); }
+
+.selection {
+  position: absolute;
+  z-index: 1;
+  top: 39px;
+  right: 4px;
+  left: 4px;
+  height: 40px;
+  border-top: 1px solid #e7b29d;
+  border-bottom: 1px solid #e7b29d;
+  background: #fff8f4;
+  pointer-events: none;
+}
+
+.options {
+  position: relative;
+  z-index: 3;
+  height: 100%;
+  overflow-y: auto;
+  padding: 40px 0;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.options::-webkit-scrollbar { display: none; }
+
+.option {
+  display: grid;
+  width: 100%;
+  height: 40px;
+  min-height: 40px;
+  place-items: center;
+  padding: 0;
+  scroll-snap-align: center;
+  border: 0;
+  background: transparent;
+  color: #96958d;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+.optionSelected {
+  color: #9f563d;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.suffix {
+  color: #66675f;
+  font-size: 12px;
+  font-weight: 700;
+}

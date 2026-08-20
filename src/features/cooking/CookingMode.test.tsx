@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Recipe } from "@/domain/recipe";
 import {
   deleteRecipeLibraryLocalDatabase,
+  loadCookingSession,
   saveCookingSession,
 } from "@/lib/indexed-db";
 
@@ -12,6 +13,7 @@ import {
   createCookingSession,
   createCookingTimer,
   moveCookingStep,
+  type CookingSession,
 } from "./cooking-core";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
@@ -182,5 +184,42 @@ describe("CookingMode", () => {
     expect(screen.queryByRole("heading", { name: "続きから再開しますか？" })).not.toBeInTheDocument();
     expect(screen.getByText("工程 2 / 2")).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: "炒める" })).toHaveLength(2);
+  });
+
+  it("adds automatically named session-only timers with the wheel picker and keeps them across steps", async () => {
+    const source = recipe("user-wheel", "recipe-wheel");
+    render(<CookingMode uid="user-wheel" recipe={source} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "＋ タイマーを追加" }));
+    fireEvent.click(within(screen.getByRole("listbox", { name: "分" })).getByRole("option", { name: "0" }));
+    fireEvent.click(within(screen.getByRole("listbox", { name: "秒" })).getByRole("option", { name: "10" }));
+    fireEvent.click(screen.getByRole("button", { name: "タイマーを開始" }));
+    expect(await screen.findByRole("heading", { name: "タイマー1" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "＋ タイマーを追加" }));
+    fireEvent.click(screen.getByRole("button", { name: "タイマーを開始" }));
+    expect(await screen.findByRole("heading", { name: "タイマー2" })).toBeInTheDocument();
+
+    const firstTimerCard = screen.getByRole("heading", { name: "タイマー1" }).closest("article");
+    if (!firstTimerCard) throw new Error("first timer card was not rendered");
+    fireEvent.click(within(firstTimerCard).getByRole("button", { name: "一時停止" }));
+    expect(within(firstTimerCard).getByRole("button", { name: "再開" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    expect(await screen.findByText("工程 2 / 2")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "タイマー1" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "タイマー2" })).toBeInTheDocument();
+
+    await waitFor(async () => {
+      const stored = await loadCookingSession<CookingSession>("user-wheel");
+      expect(stored?.recipe.steps[0].timers).toEqual(source.steps[0].timers);
+      expect(stored?.timers.filter((timer) => timer.sourceStepId === null)).toHaveLength(2);
+    });
+
+    const secondTimerCard = screen.getByRole("heading", { name: "タイマー2" }).closest("article");
+    if (!secondTimerCard) throw new Error("second timer card was not rendered");
+    fireEvent.click(within(firstTimerCard).getByRole("button", { name: "削除" }));
+    expect(screen.queryByRole("heading", { name: "タイマー1" })).not.toBeInTheDocument();
+    expect(within(secondTimerCard).getByRole("heading", { name: "タイマー2" })).toBeInTheDocument();
   });
 });

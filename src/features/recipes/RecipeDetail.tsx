@@ -35,7 +35,7 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
         <div className="detail-scroll">
           <header className="detail-header"><Link href="/recipes" aria-label="レシピ一覧を閉じる"><AppIcon name="x" size={21} /></Link></header>
           {recipe.imageDataUrl ? <Image className="detail-image" src={recipe.imageDataUrl} alt={`${recipe.title}の料理`} width={92} height={92} unoptimized /> : null}
-          <section className="detail-hero"><span>{CATEGORY_LABELS[recipe.category]}</span><h1>{recipe.title}</h1><label className="serving-select">人数<select value={selectedServings} onChange={(event) => setSelectedServings(Number(event.target.value) as Recipe["servings"])}>{ALLOWED_SERVINGS.map((value) => <option key={value} value={value}>{value}人前</option>)}</select><AppIcon name="chevron" size={15} /></label></section>
+          <section className="detail-hero"><span>{CATEGORY_LABELS[recipe.category]}</span><h1>{recipe.title}</h1><label className="serving-select"><select aria-label="人数" value={selectedServings} onChange={(event) => setSelectedServings(Number(event.target.value) as Recipe["servings"])}>{ALLOWED_SERVINGS.map((value) => <option key={value} value={value}>{value}人前</option>)}</select><AppIcon name="chevron" size={15} /></label></section>
 
           <section className="detail-section"><h2>材料</h2><div className="detail-ingredients">{recipe.ingredients.map((ingredient) => {
             const amount = formatScaledIngredientAmount(ingredient, recipe.servings, selectedServings);

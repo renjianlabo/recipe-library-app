@@ -1146,10 +1146,59 @@ body {
   font-weight: 800;
 }
 .manual-form .step-list { display: grid; gap: 10px; }
+.manual-form .step-editor-block { display: grid; gap: 7px; }
 .manual-form .step-field { display: grid; grid-template-columns: 23px minmax(0, 1fr) 24px; align-items: start; gap: 7px; }
 .manual-form .step-number { display: grid; width: 23px; height: 23px; margin-top: 8px; place-items: center; border-radius: 50%; background: var(--accent-soft); color: #a85b40; font-size: 10px; font-weight: 800; }
 .manual-form .step-field textarea { min-height: 70px; }
 .manual-form .step-field .ingredient-delete { width: 24px; height: 28px; margin-top: 5px; }
+.manual-form .step-timers { margin-left: 30px; }
+.manual-form .step-timer-list { display: grid; gap: 6px; }
+.manual-form .step-timer-summary {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: #f7f3e9;
+  color: #6c675e;
+  font-size: 10px;
+}
+.manual-form .step-timer-summary b { color: #4d4c45; }
+.manual-form .step-timer-actions { display: flex; flex: none; gap: 3px; }
+.manual-form .step-timer-actions button,
+.manual-form .step-timer-editor-actions button {
+  min-height: 27px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: #9c6049;
+  font-size: 9px;
+  font-weight: 800;
+}
+.manual-form .step-timer-add {
+  min-height: 30px;
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: #a26047;
+  font-size: 10px;
+  font-weight: 800;
+}
+.manual-form .step-timer-editor {
+  display: grid;
+  gap: 9px;
+  margin-top: 5px;
+  padding: 11px;
+  border: 1px solid #ede5dc;
+  border-radius: 13px;
+  background: #fffdf9;
+}
+.manual-form .step-timer-editor-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.manual-form .step-timer-editor-actions button:last-child { background: var(--accent-soft); }
+.manual-form .step-timer-error { margin: 0; color: #9a3e32; font-size: 10px; }
 .manual-form .optional-section { display: grid; gap: 15px; }
 .manual-form .optional-section textarea { min-height: 73px; }
 .manual-form .tag-input-row { display: grid; grid-template-columns: minmax(0, 1fr) 50px; gap: 7px; }

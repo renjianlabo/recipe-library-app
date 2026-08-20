@@ -4,8 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type TouchEvent } fr
 import { useRouter } from "next/navigation";
 
 import { AppIcon } from "@/components/AppIcon";
+import { TimerSetupFields } from "@/components/TimerWheelPicker";
 import { formatScaledIngredientAmount } from "@/domain/amounts";
 import type { Recipe } from "@/domain/recipe";
+import { nextTimerLabel, timerDurationSeconds } from "@/domain/timers";
 import {
   deleteCookingSession,
   loadCookingSession,
@@ -112,8 +114,9 @@ export function CookingMode({
   const [now, setNow] = useState(0);
   const [wakeLockStatus, setWakeLockStatus] = useState<WakeLockStatus>("idle");
   const [customLabel, setCustomLabel] = useState("");
-  const [customMinutes, setCustomMinutes] = useState("5");
-  const [customSeconds, setCustomSeconds] = useState("0");
+  const [customMinutes, setCustomMinutes] = useState(5);
+  const [customSeconds, setCustomSeconds] = useState(0);
+  const [customTimerOpen, setCustomTimerOpen] = useState(false);
   const [allMaterialsOpen, setAllMaterialsOpen] = useState(false);
 
   const sessionRef = useRef<CookingSession | null>(null);
@@ -307,7 +310,8 @@ export function CookingMode({
     const current = sessionRef.current;
     if (!current) return;
     const timestamp = Date.now();
-    const timer = createCookingTimer({ durationSeconds, label, sourceStepId }, timestamp);
+    const resolvedLabel = label.trim() || nextTimerLabel(current.timers.map((timer) => timer.label));
+    const timer = createCookingTimer({ durationSeconds, label: resolvedLabel, sourceStepId }, timestamp);
     if (!timer) {
       setTimerError("タイマーは1秒から24時間までで設定してください");
       return;
@@ -384,14 +388,16 @@ export function CookingMode({
 
   const submitCustomTimer = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const minutes = Number(customMinutes);
-    const seconds = Number(customSeconds);
-    const duration = minutes * 60 + seconds;
-    if (!Number.isInteger(minutes) || !Number.isInteger(seconds) || minutes < 0 || seconds < 0 || seconds > 59) {
-      setTimerError("分と秒を整数で入力してください");
+    const duration = timerDurationSeconds(customMinutes, customSeconds);
+    if (duration === null) {
+      setTimerError("1秒以上の時間を設定してください");
       return;
     }
-    startTimer(duration, customLabel.trim() || `工程 ${Number(sessionRef.current?.currentStepIndex ?? 0) + 1}`, currentStep?.id ?? null);
+    startTimer(duration, customLabel, null);
+    setCustomLabel("");
+    setCustomMinutes(5);
+    setCustomSeconds(0);
+    setCustomTimerOpen(false);
   };
 
   const leaveCooking = async (href: string, clear: boolean) => {
@@ -601,37 +607,28 @@ export function CookingMode({
                 </section>
               ) : null}
 
-              <details className={`${styles.manualTimer} cooking-timer-form`} data-swipe-ignore>
-                <summary>自由設定タイマー</summary>
-                <div className={styles.quickTimers}>
-                  {[1, 3, 5, 10].map((minutes) => (
-                    <button
-                      type="button"
-                      key={minutes}
-                      onClick={() => startTimer(minutes * 60, `工程 ${session.currentStepIndex + 1} ${minutes}分`, currentStep.id)}
-                    >
-                      {minutes}分
-                    </button>
-                  ))}
+              <section className={`${styles.manualTimer} cooking-timer-form`} data-swipe-ignore aria-labelledby="manual-timer-heading">
+                <div className={styles.manualTimerHeader}>
+                  <h2 id="manual-timer-heading">タイマー</h2>
+                  {!customTimerOpen ? <button type="button" onClick={() => { setTimerError(""); setCustomTimerOpen(true); }}>＋ タイマーを追加</button> : null}
                 </div>
-                <form onSubmit={submitCustomTimer}>
-                  <label>
-                    <span>タイマー名</span>
-                    <input value={customLabel} maxLength={80} onChange={(event) => setCustomLabel(event.target.value)} />
-                  </label>
-                  <div className={styles.timeFields}>
-                    <label>
-                      <span>分</span>
-                      <input type="number" min="0" max="1440" step="1" inputMode="numeric" value={customMinutes} onChange={(event) => setCustomMinutes(event.target.value)} />
-                    </label>
-                    <label>
-                      <span>秒</span>
-                      <input type="number" min="0" max="59" step="1" inputMode="numeric" value={customSeconds} onChange={(event) => setCustomSeconds(event.target.value)} />
-                    </label>
-                  </div>
-                  <button className={styles.secondaryButton} type="submit">タイマーを開始</button>
-                </form>
-              </details>
+                {customTimerOpen ? (
+                  <form onSubmit={submitCustomTimer}>
+                    <TimerSetupFields
+                      label={customLabel}
+                      minutes={customMinutes}
+                      seconds={customSeconds}
+                      onLabelChange={setCustomLabel}
+                      onMinutesChange={setCustomMinutes}
+                      onSecondsChange={setCustomSeconds}
+                    />
+                    <div className={styles.manualTimerActions}>
+                      <button type="button" onClick={() => { setCustomTimerOpen(false); setTimerError(""); }}>キャンセル</button>
+                      <button className={styles.secondaryButton} type="submit">タイマーを開始</button>
+                    </div>
+                  </form>
+                ) : null}
+              </section>
               {timerError ? <p className={styles.timerError} role="alert">{timerError}</p> : null}
             </article>
           </section>
