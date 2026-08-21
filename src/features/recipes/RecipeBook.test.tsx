@@ -60,13 +60,37 @@ describe("RecipeBook search controls", () => {
     expect(screen.queryByText("ガーリックトースト")).not.toBeInTheDocument();
   });
 
-  it("uses category buttons and has no seasoning filter", () => {
+  it("shows six unselected category buttons and no all or seasoning filter", () => {
     render(<RecipeBook />);
+    expect(screen.queryByRole("button", { name: "すべて" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "調味料" })).not.toBeInTheDocument();
     expect(screen.queryByRole("combobox", { name: /カテゴリー/ })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button")).toHaveLength(6);
+    for (const label of ["主食", "主菜", "副菜", "汁物", "デザート", "その他"]) {
+      expect(screen.getByRole("button", { name: label })).toHaveAttribute("aria-pressed", "false");
+    }
+    expect(screen.getByText("すべてのレシピ")).toBeInTheDocument();
+    expect(screen.getByText("ニンジンサラダ")).toBeInTheDocument();
+    expect(screen.getByText("ガーリックトースト")).toBeInTheDocument();
+  });
+
+  it("toggles a category off and switches directly to another category", () => {
+    render(<RecipeBook />);
     fireEvent.click(screen.getByRole("button", { name: "主食" }));
     expect(screen.queryByText("ニンジンサラダ")).not.toBeInTheDocument();
     expect(screen.getByText("ガーリックトースト")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "主食" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "副菜" }));
+    expect(screen.getByRole("button", { name: "主食" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("button", { name: "副菜" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("ニンジンサラダ")).toBeInTheDocument();
+    expect(screen.queryByText("ガーリックトースト")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "副菜" }));
+    expect(screen.getByRole("button", { name: "副菜" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByText("ニンジンサラダ")).toBeInTheDocument();
+    expect(screen.getByText("ガーリックトースト")).toBeInTheDocument();
+    expect(screen.getByText("すべてのレシピ")).toBeInTheDocument();
   });
 });

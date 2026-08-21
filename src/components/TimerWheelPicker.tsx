@@ -93,6 +93,7 @@ export function TimerSetupFields({
   minutes,
   seconds,
   onLabelChange,
+  blurLabelOnEnter = false,
   onMinutesChange,
   onSecondsChange,
 }: {
@@ -100,6 +101,7 @@ export function TimerSetupFields({
   minutes: number;
   seconds: number;
   onLabelChange: (value: string) => void;
+  blurLabelOnEnter?: boolean;
   onMinutesChange: (value: number) => void;
   onSecondsChange: (value: number) => void;
 }) {
@@ -107,7 +109,20 @@ export function TimerSetupFields({
     <div className={styles.field}>
       <label className={styles.field}>
         <span className={styles.fieldLabel}>タイマー名</span>
-        <input className={styles.nameInput} value={label} maxLength={100} placeholder="例：煮込み" onChange={(event) => onLabelChange(event.target.value)} />
+        <input
+          className={styles.nameInput}
+          value={label}
+          maxLength={100}
+          placeholder="例：煮込み"
+          enterKeyHint={blurLabelOnEnter ? "done" : undefined}
+          onChange={(event) => onLabelChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" || event.nativeEvent.isComposing || !blurLabelOnEnter) return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.currentTarget.blur();
+          }}
+        />
       </label>
       <div className={styles.timeRow}>
         <Wheel label="分" suffix="分" options={TIMER_MINUTE_OPTIONS} value={minutes} onChange={onMinutesChange} />

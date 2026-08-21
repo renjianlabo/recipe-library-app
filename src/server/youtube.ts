@@ -14,7 +14,11 @@ const YOUTUBE_HOSTS = new Set([
 const youtubeResponseSchema = z.object({
   items: z.array(z.object({
     id: z.string(),
-    snippet: z.object({ description: z.string().optional() }),
+    snippet: z.object({
+      title: z.string(),
+      description: z.string().optional(),
+      channelTitle: z.string().optional(),
+    }),
   })),
 });
 
@@ -24,7 +28,9 @@ export type YouTubeVideoReference = {
 };
 
 export type YouTubeSnippet = {
+  title: string;
   description: string;
+  channelTitle: string;
   warnings: string[];
 };
 
@@ -59,7 +65,7 @@ export function extractYouTubeVideoId(rawUrl: string): YouTubeVideoReference {
 
   return {
     videoId: candidate,
-    url: `https://www.youtube.com/watch?v=${candidate}`,
+    url: rawUrl.trim(),
   };
 }
 
@@ -77,7 +83,7 @@ export function createYouTubeSnippetFetcher(options: {
     if (!apiKey) {
       throw new ApiError(
         "YOUTUBE_NOT_CONFIGURED",
-        "YouTube情報取得機能が設定されていません。文章またはスクリーンショットから作成してください。",
+        "YouTube情報取得機能が設定されていません。",
         503,
         false,
       );
@@ -90,12 +96,13 @@ export function createYouTubeSnippetFetcher(options: {
       const endpoint = new URL("https://www.googleapis.com/youtube/v3/videos");
       endpoint.searchParams.set("part", "snippet");
       endpoint.searchParams.set("id", videoId);
+      endpoint.searchParams.set("fields", "items(id,snippet(title,description,channelTitle))");
       endpoint.searchParams.set("key", apiKey);
       response = await fetchImpl(endpoint, { signal: controller.signal });
     } catch {
       throw new ApiError(
         "YOUTUBE_FETCH_FAILED",
-        "YouTubeの概要欄を取得できませんでした。文章またはスクリーンショットから作成してください。",
+        "YouTube動画の情報を取得できませんでした。",
         502,
         true,
       );
@@ -106,7 +113,7 @@ export function createYouTubeSnippetFetcher(options: {
     if (!response.ok) {
       throw new ApiError(
         "YOUTUBE_FETCH_FAILED",
-        "YouTubeの概要欄を取得できませんでした。動画が公開されているか確認してください。",
+        "YouTube動画の情報を取得できませんでした。",
         502,
         true,
       );
@@ -118,7 +125,7 @@ export function createYouTubeSnippetFetcher(options: {
     } catch {
       throw new ApiError(
         "YOUTUBE_FETCH_FAILED",
-        "YouTubeから正しい動画情報を取得できませんでした。",
+        "YouTube動画の情報を取得できませんでした。",
         502,
         true,
       );
@@ -128,7 +135,7 @@ export function createYouTubeSnippetFetcher(options: {
     if (!item) {
       throw new ApiError(
         "YOUTUBE_VIDEO_NOT_FOUND",
-        "YouTube動画が見つかりません。URLと公開状態を確認してください。",
+        "YouTube動画の情報を取得できませんでした。",
         404,
         true,
       );
@@ -136,11 +143,12 @@ export function createYouTubeSnippetFetcher(options: {
 
     const description = item.snippet.description?.trim() ?? "";
     return {
+      title: item.snippet.title.trim(),
       description,
+      channelTitle: item.snippet.channelTitle?.trim() ?? "",
       warnings: description
         ? []
         : ["YouTubeの概要欄は空でした。概要欄を使用せず、動画から確認できた内容だけを候補にしています。"],
     };
   };
 }
-

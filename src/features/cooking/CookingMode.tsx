@@ -119,6 +119,7 @@ export function CookingMode({
   const swipeGestureRef = useRef<SwipeGesture | null>(null);
   const stepScreenRef = useRef<HTMLElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const notifiedTimerIdsRef = useRef(new Set<string>());
   const persistenceQueueRef = useRef<Promise<void>>(Promise.resolve());
   const suppressPersistenceRef = useRef(false);
   const mountedRef = useRef(true);
@@ -193,7 +194,9 @@ export function CookingMode({
   }, [queuePersistence, session]);
 
   const unlockAudio = useCallback(() => {
-    const AudioContextConstructor = window.AudioContext;
+    const AudioContextConstructor = window.AudioContext
+      ?? (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextConstructor) return;
     try {
       audioContextRef.current ??= new AudioContextConstructor();
       if (audioContextRef.current.state === "suspended") {
@@ -219,17 +222,23 @@ export function CookingMode({
     const audioContext = audioContextRef.current;
     if (audioContext?.state === "running") {
       try {
-        const oscillator = audioContext.createOscillator();
-        const gain = audioContext.createGain();
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
-        gain.gain.setValueAtTime(0.001, audioContext.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.22, audioContext.currentTime + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.55);
-        oscillator.connect(gain);
-        gain.connect(audioContext.destination);
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.6);
+        [
+          { delay: 0, frequency: 880 },
+          { delay: 0.16, frequency: 1_046 },
+        ].forEach(({ delay, frequency }) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          const startsAt = audioContext.currentTime + delay;
+          oscillator.type = "sine";
+          oscillator.frequency.setValueAtTime(frequency, startsAt);
+          gain.gain.setValueAtTime(0.001, startsAt);
+          gain.gain.exponentialRampToValueAtTime(0.12, startsAt + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.001, startsAt + 0.12);
+          oscillator.connect(gain);
+          gain.connect(audioContext.destination);
+          oscillator.start(startsAt);
+          oscillator.stop(startsAt + 0.13);
+        });
       } catch {
         // The live announcement still reports completion if audio is unavailable.
       }
@@ -250,7 +259,11 @@ export function CookingMode({
       const reconciled = reconcileCookingTimers(current, timestamp);
       if (!reconciled.newlyFinished.length) return;
       commitSession(reconciled.session);
-      reconciled.newlyFinished.forEach(announceTimer);
+      reconciled.newlyFinished.forEach((timer) => {
+        if (notifiedTimerIdsRef.current.has(timer.id)) return;
+        notifiedTimerIdsRef.current.add(timer.id);
+        announceTimer(timer);
+      });
     };
     tick();
     const handle = window.setInterval(tick, 1_000);
@@ -303,6 +316,7 @@ export function CookingMode({
   const startTimer = useCallback((durationSeconds: number, label: string, sourceStepId: string | null) => {
     const current = sessionRef.current;
     if (!current) return;
+    unlockAudio();
     const timestamp = Date.now();
     const usedTimerLabels = [
       ...current.usedTimerNumbers.map((number) => `タイマー${number}`),
@@ -320,7 +334,7 @@ export function CookingMode({
       ? [...current.usedTimerNumbers, timerNumber]
       : current.usedTimerNumbers;
     commitSession({ ...current, timers: [...current.timers, timer], usedTimerNumbers, updatedAt: timestamp });
-  }, [commitSession]);
+  }, [commitSession, unlockAudio]);
 
   const closeCustomTimerSheet = useCallback(() => {
     setCustomTimerOpen(false);
@@ -342,7 +356,10 @@ export function CookingMode({
 
   const finishCooking = useCallback(() => {
     const current = sessionRef.current;
-    if (current) commitSession(completeCookingSession(current, Date.now()));
+    if (current) {
+      notifiedTimerIdsRef.current.clear();
+      commitSession(completeCookingSession(current, Date.now()));
+    }
   }, [commitSession]);
 
   const beginSwipe = (event: TouchEvent<HTMLElement>) => {
@@ -379,8 +396,7 @@ export function CookingMode({
     if (next !== current.currentStepIndex) goToStep(next);
   };
 
-  const submitCustomTimer = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const startCustomTimer = () => {
     const duration = timerDurationSeconds(customMinutes, customSeconds);
     if (duration === null) {
       setTimerError("1秒以上の時間を設定してください");
@@ -627,19 +643,20 @@ export function CookingMode({
           <section className={`${styles.materialsSheet} ${styles.timerSheet}`}>
             <div className={styles.sheetHandle} />
             <header><h2>タイマーを追加</h2><button type="button" onClick={closeCustomTimerSheet} aria-label="閉じる"><AppIcon name="x" size={19} /></button></header>
-            <form className={styles.timerSheetForm} onSubmit={submitCustomTimer}>
+            <form className={styles.timerSheetForm} onSubmit={(event) => event.preventDefault()}>
               <TimerSetupFields
                 label={customLabel}
                 minutes={customMinutes}
                 seconds={customSeconds}
                 onLabelChange={setCustomLabel}
+                blurLabelOnEnter
                 onMinutesChange={setCustomMinutes}
                 onSecondsChange={setCustomSeconds}
               />
               {timerError ? <p className={styles.timerError} role="alert">{timerError}</p> : null}
               <div className={styles.timerSheetActions}>
                 <button type="button" onClick={closeCustomTimerSheet}>キャンセル</button>
-                <button className={styles.primaryButton} type="submit" disabled={timerDurationSeconds(customMinutes, customSeconds) === null}>タイマーを開始</button>
+                <button className={styles.primaryButton} type="button" onClick={startCustomTimer} disabled={timerDurationSeconds(customMinutes, customSeconds) === null}>タイマーを開始</button>
               </div>
             </form>
           </section>

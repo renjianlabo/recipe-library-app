@@ -910,9 +910,8 @@ body {
 
 .search { display: flex; height: 48px; align-items: center; gap: 9px; padding: 0 14px; border: 1px solid var(--line); border-radius: 14px; background: #f7f7f3; color: #999a92; }
 .search input { width: 100%; min-height: 0 !important; padding: 0 !important; border: 0 !important; outline: 0; background: transparent !important; font-size: 16px; }
-.filter-row { display: flex; gap: 7px; overflow-x: auto; margin: 17px -20px 26px; padding: 0 20px; scrollbar-width: none; }
-.filter-row::-webkit-scrollbar { display: none; }
-.filter-row button { min-height: 33px; flex: none; padding: 6px 13px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: #77786f; font-size: 11px; font-weight: 700; white-space: nowrap; }
+.filter-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin: 17px 0 26px; }
+.filter-row button { width: 100%; height: 36px; min-width: 0; padding: 6px 4px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: #77786f; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .filter-row button.active { border-color: var(--accent); background: var(--accent); color: #fff; }
 .list-label { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 12px; }
 .list-label span { font-size: 15px; font-weight: 800; letter-spacing: -.04em; }

@@ -48,6 +48,26 @@ describe("Gemini Interactions recipe generator", () => {
     }), expect.any(AbortSignal));
   });
 
+  it("passes a YouTube video URI through to the Interactions request", async () => {
+    const transport = transportWith({
+      status: "completed",
+      output_text: JSON.stringify(modelOutput()),
+      steps: [],
+    });
+    const generator = createGeminiRecipeGenerator({ transport, timeoutMs: 100 });
+    const input = [
+      { type: "video" as const, uri: "https://youtu.be/dQw4w9WgXcQ" },
+      { type: "text" as const, text: "YouTube metadata" },
+    ];
+
+    await generator.generate({ systemInstruction: "system", input });
+
+    expect(transport.create).toHaveBeenCalledWith(
+      expect.objectContaining({ input }),
+      expect.any(AbortSignal),
+    );
+  });
+
   it("rejects malformed structured output", async () => {
     const generator = createGeminiRecipeGenerator({
       transport: transportWith({ status: "completed", output_text: "{}", steps: [] }),

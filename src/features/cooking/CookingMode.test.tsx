@@ -1,5 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Recipe } from "@/domain/recipe";
 import {
@@ -90,6 +90,10 @@ describe("CookingMode", () => {
   beforeEach(async () => {
     navigation.push.mockReset();
     await deleteRecipeLibraryLocalDatabase();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("shows the step body before its derived ingredients and runs concurrent timers", async () => {
@@ -281,5 +285,108 @@ describe("CookingMode", () => {
     for (const removedLabel of ["一時停止", "再開", "+1分", "終了", "削除"]) {
       expect(within(timerSection).queryByRole("button", { name: new RegExp(`^${removedLabel.replace("+", "\\+")}$`) })).not.toBeInTheDocument();
     }
+  });
+
+  it("dismisses the timer-name keyboard on Enter without starting or resetting the timer draft", async () => {
+    render(<CookingMode uid="user-enter" recipe={recipe("user-enter", "recipe-enter")} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "＋ タイマーを追加" }));
+    const timerDialog = screen.getByRole("dialog", { name: "タイマーを追加" });
+    const nameInput = within(timerDialog).getByRole("textbox", { name: "タイマー名" });
+    const minuteWheel = within(timerDialog).getByRole("listbox", { name: "分" });
+    const secondWheel = within(timerDialog).getByRole("listbox", { name: "秒" });
+
+    fireEvent.change(nameInput, { target: { value: "煮込み" } });
+    fireEvent.click(within(minuteWheel).getByRole("option", { name: "10" }));
+    fireEvent.click(within(secondWheel).getByRole("option", { name: "30" }));
+    nameInput.focus();
+    fireEvent.keyDown(nameInput, { key: "Enter", code: "Enter" });
+
+    expect(document.activeElement).not.toBe(nameInput);
+    expect(screen.getByRole("dialog", { name: "タイマーを追加" })).toBeInTheDocument();
+    expect(nameInput).toHaveValue("煮込み");
+    expect(within(minuteWheel).getByRole("option", { name: "10", selected: true })).toBeInTheDocument();
+    expect(within(secondWheel).getByRole("option", { name: "30", selected: true })).toBeInTheDocument();
+    expect(document.querySelectorAll("[data-timer-id]")).toHaveLength(0);
+
+    fireEvent.submit(nameInput.closest("form") as HTMLFormElement);
+    expect(document.querySelectorAll("[data-timer-id]")).toHaveLength(0);
+    fireEvent.click(within(timerDialog).getByRole("button", { name: "タイマーを開始" }));
+    expect(await screen.findByText("煮込み")).toBeInTheDocument();
+  });
+
+  it("plays one short two-tone notification per finished timer and none after deletion or completion", async () => {
+    let currentTime = 1_000;
+    const ticks: Array<() => void> = [];
+    const oscillatorStart = vi.fn();
+    const resume = vi.fn(function (this: { state: AudioContextState }) {
+      this.state = "running";
+      return Promise.resolve();
+    });
+    class AudioContextMock {
+      state: AudioContextState = "suspended";
+      currentTime = 0;
+      destination = {};
+      resume = resume;
+      createOscillator() {
+        return {
+          type: "sine",
+          frequency: { setValueAtTime: vi.fn() },
+          connect: vi.fn(),
+          start: oscillatorStart,
+          stop: vi.fn(),
+        };
+      }
+      createGain() {
+        return {
+          gain: { setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
+          connect: vi.fn(),
+        };
+      }
+    }
+    vi.spyOn(Date, "now").mockImplementation(() => currentTime);
+    vi.spyOn(window, "setInterval").mockImplementation(((callback: TimerHandler) => {
+      if (typeof callback === "function") ticks.push(() => callback());
+      return 1;
+    }) as typeof window.setInterval);
+    Object.defineProperty(window, "AudioContext", { configurable: true, value: AudioContextMock });
+
+    render(<CookingMode uid="user-audio" recipe={recipe("user-audio", "recipe-audio")} />);
+    const addTimer = await screen.findByRole("button", { name: "＋ タイマーを追加" });
+
+    const startTenSecondTimer = (label: string) => {
+      fireEvent.click(addTimer);
+      const dialog = screen.getByRole("dialog", { name: "タイマーを追加" });
+      fireEvent.change(within(dialog).getByRole("textbox", { name: "タイマー名" }), { target: { value: label } });
+      const minuteWheel = within(dialog).getByRole("listbox", { name: "分" });
+      fireEvent.click(within(minuteWheel).getByRole("option", { name: "0" }));
+      const secondWheel = within(dialog).getByRole("listbox", { name: "秒" });
+      fireEvent.click(within(secondWheel).getByRole("option", { name: "10" }));
+      fireEvent.click(within(dialog).getByRole("button", { name: "タイマーを開始" }));
+    };
+
+    startTenSecondTimer("煮込み");
+    startTenSecondTimer("蒸らし");
+    expect(resume).toHaveBeenCalled();
+
+    currentTime = 11_000;
+    act(() => ticks[0]());
+    expect(oscillatorStart).toHaveBeenCalledTimes(4);
+    act(() => ticks[0]());
+    expect(oscillatorStart).toHaveBeenCalledTimes(4);
+
+    startTenSecondTimer("削除するタイマー");
+    fireEvent.click(screen.getByRole("button", { name: "削除するタイマーを閉じる" }));
+    currentTime = 21_000;
+    act(() => ticks[0]());
+    expect(oscillatorStart).toHaveBeenCalledTimes(4);
+
+    startTenSecondTimer("完成時タイマー");
+    fireEvent.click(screen.getByRole("button", { name: "次へ" }));
+    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    currentTime = 31_000;
+    act(() => ticks[0]());
+    expect(oscillatorStart).toHaveBeenCalledTimes(4);
+    expect(document.querySelectorAll("[data-timer-id]")).toHaveLength(0);
   });
 });

@@ -6,34 +6,43 @@ import type { RecipeGenerator } from "../gemini";
 import { modelOutput, recipeDraft } from "./fixtures";
 
 describe("AI extraction service", () => {
-  it("uses YouTube description and video together and reports an empty description", async () => {
+  it("passes YouTube metadata and the original video URL with strict priority rules", async () => {
     const generate = vi.fn<RecipeGenerator["generate"]>(async () => modelOutput());
     const generator: RecipeGenerator = { generate };
     const service = createAiRecipeService({
       generator,
       youtubeSnippetFetcher: async () => ({
-        description: "",
-        warnings: ["YouTubeの概要欄は空でした。"],
+        title: "親子丼の作り方",
+        description: "材料: 卵2個",
+        channelTitle: "料理チャンネル",
+        warnings: [],
       }),
     });
     const result = await service.extract({
       type: "youtube",
-      url: "https://youtu.be/dQw4w9WgXcQ",
+      url: "https://youtu.be/dQw4w9WgXcQ?t=10",
     });
 
     expect(result.draft.source).toEqual({
       type: "youtube",
-      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      url: "https://youtu.be/dQw4w9WgXcQ?t=10",
     });
-    expect(result.warnings).toContain("YouTubeの概要欄は空でした。");
-    expect(generate.mock.calls[0][0].input).toContainEqual({
+    expect(generate.mock.calls[0][0].input[0]).toEqual({
       type: "video",
-      uri: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      uri: "https://youtu.be/dQw4w9WgXcQ?t=10",
     });
+    expect(generate.mock.calls[0][0].input[1]).toMatchObject({ type: "text" });
+    const metadataText = (generate.mock.calls[0][0].input[1] as { text: string }).text;
+    expect(metadataText).toContain("親子丼の作り方");
+    expect(metadataText).toContain("材料: 卵2個");
+    expect(metadataText).toContain("料理チャンネル");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("ingredients（材料）、調味料・油・香辛料・だし類はseasonings（調味料）");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("1/2ではなく0.5");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("同義語へ勝手に置き換えない");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("warningsへユーザーが確認できる短い文章で記録");
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("概要欄を最優先");
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("概要欄と動画が矛盾");
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("信頼できない外部入力");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("tagsは空配列");
     expect(result.draft.tags).toEqual([]);
   });
@@ -49,6 +58,107 @@ describe("AI extraction service", () => {
     await expect(service.extract({ type: "youtube", url: "https://youtu.be/dQw4w9WgXcQ" }))
       .rejects.toMatchObject({ code: "YOUTUBE_FETCH_FAILED" });
     expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("falls back to sufficient description-only extraction when video analysis fails", async () => {
+    const generate = vi.fn<RecipeGenerator["generate"]>();
+    generate
+      .mockRejectedValueOnce(new ApiError("AI_UNAVAILABLE", "failed", 503, true))
+      .mockResolvedValueOnce(modelOutput());
+    const service = createAiRecipeService({
+      generator: { generate },
+      youtubeSnippetFetcher: async () => ({
+        title: "親子丼",
+        description: "材料: 卵2個\n作り方: 卵を加えて加熱する。",
+        channelTitle: "料理チャンネル",
+        warnings: [],
+      }),
+    });
+
+    const result = await service.extract({
+      type: "youtube",
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    });
+
+    expect(generate).toHaveBeenCalledTimes(2);
+    expect(generate.mock.calls[1][0].input).toHaveLength(1);
+    expect(generate.mock.calls[1][0].input[0]).toMatchObject({ type: "text" });
+    expect(generate.mock.calls[1][0].systemInstruction).toContain("タイトルと概要欄だけ");
+    expect(result.warnings).toContain(
+      "動画内容を解析できなかったため、概要欄の情報のみから作成しています。",
+    );
+    expect(result.draft.source).toEqual({
+      type: "youtube",
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    });
+  });
+
+  it("does not fabricate a fallback when video analysis fails and the description is empty", async () => {
+    const generate = vi.fn<RecipeGenerator["generate"]>(async () => {
+      throw new ApiError("AI_UNAVAILABLE", "failed", 503, true);
+    });
+    const service = createAiRecipeService({
+      generator: { generate },
+      youtubeSnippetFetcher: async () => ({
+        title: "料理動画",
+        description: "",
+        channelTitle: "料理チャンネル",
+        warnings: ["YouTubeの概要欄は空でした。"],
+      }),
+    });
+
+    await expect(service.extract({
+      type: "youtube",
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    })).rejects.toMatchObject({ code: "YOUTUBE_VIDEO_ANALYSIS_FAILED" });
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects video analysis failure when the description-only draft is insufficient", async () => {
+    const generate = vi.fn<RecipeGenerator["generate"]>();
+    generate
+      .mockRejectedValueOnce(new ApiError("AI_UNAVAILABLE", "failed", 503, true))
+      .mockResolvedValueOnce(modelOutput({
+        draft: recipeDraft({ title: "", ingredients: [], steps: [] }),
+      }));
+    const service = createAiRecipeService({
+      generator: { generate },
+      youtubeSnippetFetcher: async () => ({
+        title: "料理動画",
+        description: "詳しくは動画をご覧ください。",
+        channelTitle: "料理チャンネル",
+        warnings: [],
+      }),
+    });
+
+    await expect(service.extract({
+      type: "youtube",
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    })).rejects.toMatchObject({
+      code: "YOUTUBE_VIDEO_ANALYSIS_FAILED",
+      message: "このYouTube動画をAIで解析できませんでした。",
+    });
+  });
+
+  it("does not retry a video request after Gemini quota exhaustion", async () => {
+    const generate = vi.fn<RecipeGenerator["generate"]>(async () => {
+      throw new ApiError("AI_LIMIT_REACHED", "limited", 429, true);
+    });
+    const service = createAiRecipeService({
+      generator: { generate },
+      youtubeSnippetFetcher: async () => ({
+        title: "親子丼",
+        description: "材料: 卵2個",
+        channelTitle: "料理チャンネル",
+        warnings: [],
+      }),
+    });
+
+    await expect(service.extract({
+      type: "youtube",
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    })).rejects.toMatchObject({ code: "AI_LIMIT_REACHED" });
+    expect(generate).toHaveBeenCalledTimes(1);
   });
 
   it("rejects unsafe websites before Gemini and passes a safe URL for status verification", async () => {
