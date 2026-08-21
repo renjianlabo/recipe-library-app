@@ -56,3 +56,142 @@ export const recipeDraftJsonSchema = z.toJSONSchema(aiModelOutputSchema, {
   target: "draft-2020-12",
   unrepresentable: "any",
 });
+
+// `maxItems` is supported in isolation, but the repeated limits in this nested
+// recipe schema make Gemini reject the complete schema as INVALID_ARGUMENT.
+// Zod still enforces every omitted constraint after generation.
+const GEMINI_OMITTED_SCHEMA_KEYWORDS = new Set([
+  "$schema",
+  "const",
+  "exclusiveMinimum",
+  "minLength",
+  "maxLength",
+  "maxItems",
+  "pattern",
+]);
+
+function mergeEquivalentEnumBranches(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  const branches = schema.anyOf;
+  if (!Array.isArray(branches) || branches.length === 0) {
+    return schema;
+  }
+
+  const firstBranch = branches[0];
+  if (
+    !firstBranch ||
+    typeof firstBranch !== "object" ||
+    Array.isArray(firstBranch)
+  ) {
+    return schema;
+  }
+
+  const branchType = (firstBranch as Record<string, unknown>).type;
+  if (
+    typeof branchType !== "string" ||
+    !branches.every((branch) => {
+      if (!branch || typeof branch !== "object" || Array.isArray(branch)) {
+        return false;
+      }
+
+      const branchSchema = branch as Record<string, unknown>;
+      return (
+        branchSchema.type === branchType &&
+        Array.isArray(branchSchema.enum) &&
+        Object.keys(branchSchema).every(
+          (key) => key === "type" || key === "enum",
+        )
+      );
+    })
+  ) {
+    return schema;
+  }
+
+  const rest = { ...schema };
+  delete rest.anyOf;
+  const enumValues = branches.flatMap(
+    (branch) => (branch as Record<string, unknown>).enum as unknown[],
+  );
+
+  return {
+    ...rest,
+    type: branchType,
+    enum: enumValues,
+  };
+}
+
+function mergeNullableBranches(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  const branches = schema.anyOf;
+  if (!Array.isArray(branches) || branches.length !== 2) {
+    return schema;
+  }
+
+  const branchSchemas = branches.filter(
+    (branch): branch is Record<string, unknown> =>
+      Boolean(branch) && typeof branch === "object" && !Array.isArray(branch),
+  );
+  if (branchSchemas.length !== 2) {
+    return schema;
+  }
+
+  const nullBranch = branchSchemas.find(
+    (branch) => branch.type === "null" && Object.keys(branch).length === 1,
+  );
+  const valueBranch = branchSchemas.find((branch) => branch !== nullBranch);
+  if (!nullBranch || !valueBranch || typeof valueBranch.type !== "string") {
+    return schema;
+  }
+
+  const rest = { ...schema };
+  delete rest.anyOf;
+  const nullableSchema: Record<string, unknown> = {
+    ...rest,
+    ...valueBranch,
+    type: [valueBranch.type, "null"],
+  };
+  if (Array.isArray(valueBranch.enum)) {
+    nullableSchema.enum = [...valueBranch.enum, null];
+  }
+
+  return nullableSchema;
+}
+
+function toGeminiCompatibleSchema(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(toGeminiCompatibleSchema);
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const compatibleSchema: Record<string, unknown> = {};
+  for (const [key, childValue] of Object.entries(value)) {
+    if (key === "const") {
+      compatibleSchema.enum = [toGeminiCompatibleSchema(childValue)];
+      continue;
+    }
+
+    if (GEMINI_OMITTED_SCHEMA_KEYWORDS.has(key)) {
+      continue;
+    }
+
+    compatibleSchema[key] = toGeminiCompatibleSchema(childValue);
+  }
+
+  return mergeNullableBranches(
+    mergeEquivalentEnumBranches(compatibleSchema),
+  );
+}
+
+/**
+ * Gemini Structured Output accepts a narrower JSON Schema subset than Zod's
+ * draft-2020-12 output. This schema is only an API transport constraint; the
+ * existing Zod schema remains the source of truth for received model output.
+ */
+export const geminiRecipeDraftJsonSchema = toGeminiCompatibleSchema(
+  recipeDraftJsonSchema,
+) as Record<string, unknown>;

@@ -3,7 +3,7 @@ import { GoogleGenAI, type Interactions } from "@google/genai";
 import { ApiError } from "./api-error";
 import {
   aiModelOutputSchema,
-  recipeDraftJsonSchema,
+  geminiRecipeDraftJsonSchema,
   type AiModelOutput,
 } from "./ai-schema";
 
@@ -258,7 +258,7 @@ export function createGeminiRecipeGenerator(options: {
             response_format: {
               type: "text",
               mime_type: "application/json",
-              schema: recipeDraftJsonSchema as Record<string, unknown>,
+              schema: geminiRecipeDraftJsonSchema,
             },
             ...(request.expectedUrlContext ? { tools: [{ type: "url_context" as const }] } : {}),
             store: false,
