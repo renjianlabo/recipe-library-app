@@ -42,6 +42,22 @@ describe("server authentication", () => {
     })).rejects.toMatchObject({ code: "EMAIL_NOT_ALLOWED", status: 403 });
   });
 
+  it("rejects an invalid Firebase ID token as 401", async () => {
+    const verifyIdToken = vi.fn(async () => {
+      throw Object.assign(new Error("Firebase ID token is invalid"), {
+        code: "auth/argument-error",
+      });
+    });
+    const request = new Request("https://example.test/api", {
+      headers: { authorization: "Bearer invalid-id-token" },
+    });
+
+    await expect(authenticateRequest(request, {
+      adminAuthFactory: () => ({ verifyIdToken }),
+    })).rejects.toMatchObject({ code: "AUTH_INVALID", status: 401 });
+    expect(verifyIdToken).toHaveBeenCalledWith("invalid-id-token");
+  });
+
   it("separates Firebase Admin configuration failures from invalid user tokens", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const request = new Request("https://example.test/api", {

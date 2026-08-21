@@ -27,6 +27,7 @@ const contentSecurityPolicy = [
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_PUBLIC_E2E_MODE === "1" ? ".next-e2e" : ".next",
   deploymentId,
+  transpilePackages: ["firebase-admin"],
   poweredByHeader: false,
   async headers() {
     return [
