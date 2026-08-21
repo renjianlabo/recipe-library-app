@@ -10,13 +10,13 @@ import { useAuth } from "@/contexts/AuthProvider";
 const navItems = [
   { href: "/", label: "ホーム", icon: "home" },
   { href: "/recipes", label: "レシピ", icon: "book" },
-  { href: "/add", label: "作成", icon: "plus" },
+  { href: "/create", label: "作成", icon: "plus" },
 ] as const;
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const focused = !["/", "/recipes", "/add"].includes(pathname);
+  const focused = !["/", "/recipes", "/add", "/create"].includes(pathname);
   const cooking = pathname.startsWith("/cook/");
 
   return (
@@ -29,8 +29,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               const active = pathname === item.href;
               return (
                 <Link key={item.href} href={item.href} aria-current={active ? "page" : undefined}>
-                  <span className={item.href === "/add" ? "create-icon" : ""}>
-                    <AppIcon name={item.icon} size={item.href === "/add" ? 23 : 21} />
+                  <span className={item.href === "/create" ? "create-icon" : ""}>
+                    <AppIcon name={item.icon} size={item.href === "/create" ? 23 : 21} />
                   </span>
                   <small>{item.label}</small>
                 </Link>

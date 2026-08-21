@@ -17,6 +17,7 @@ import {
   type Recipe,
   type RecipeDraft,
 } from "@/domain/recipe";
+import { clearAiReviewSession, saveCompletionReceipt } from "@/features/creation/creation-session";
 import { RecipeFieldsEditor } from "./RecipeFieldsEditor";
 import { useDraftAutosave } from "./useDraftAutosave";
 
@@ -51,6 +52,9 @@ export function RecipeEditor({
   description,
   warnings = [],
   needsServingsConfirmation = false,
+  completionAfterSave = false,
+  clearAiSessionOnSave = false,
+  closeHref,
 }: {
   initialDraft: RecipeDraft;
   existingRecipe?: Recipe;
@@ -59,6 +63,9 @@ export function RecipeEditor({
   description: string;
   warnings?: string[];
   needsServingsConfirmation?: boolean;
+  completionAfterSave?: boolean;
+  clearAiSessionOnSave?: boolean;
+  closeHref?: string;
 }) {
   const router = useRouter();
   const { user } = useAuth();
@@ -104,7 +111,13 @@ export function RecipeEditor({
       attemptedRecipe = recipe;
       await saveRecipe(recipe, { expectedUpdatedAt: baseRecipe?.updatedAt ?? null });
       await autosave.clearSavedDraft().catch(() => undefined);
-      router.replace(`/recipes/${encodeURIComponent(recipe.id)}`);
+      if (completionAfterSave && !baseRecipe) {
+        saveCompletionReceipt({ recipeId: recipe.id, recipeTitle: recipe.title });
+        if (clearAiSessionOnSave) clearAiReviewSession();
+        router.replace("/create/complete");
+      } else {
+        router.replace(`/recipes/${encodeURIComponent(recipe.id)}`);
+      }
     } catch (cause) {
       if (isRecipeConflictError(cause) && attemptedRecipe) {
         setConflict({ attemptedRecipe });
@@ -132,7 +145,7 @@ export function RecipeEditor({
   return (
     <AuthGate>
       <main className="page-container editor-page manual-content">
-        <header className="flow-header"><Link href={baseRecipe ? `/recipes/${encodeURIComponent(baseRecipe.id)}` : "/add"} aria-label="編集を閉じる"><AppIcon name="x" size={22} /></Link><h1>{heading}</h1></header>
+        <header className="flow-header"><Link href={closeHref ?? (baseRecipe ? `/recipes/${encodeURIComponent(baseRecipe.id)}` : "/create")} aria-label="編集を閉じる"><AppIcon name="x" size={22} /></Link><h1>{heading}</h1></header>
         <p className="manual-lead">{description}</p>
 
         {warnings.map((warning) => <p className="alert warning" key={warning}>{warning}</p>)}

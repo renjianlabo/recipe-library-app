@@ -45,7 +45,7 @@ export function HomeView() {
             </section>
           );
         }) : null}
-        {!loading && !recipes.length ? <div className="empty-recipes"><strong>まだレシピがありません</strong><span>作成タブから最初のレシピを追加できます</span><Link className="primary-flow-button" href="/add">レシピを作成</Link></div> : null}
+        {!loading && !recipes.length ? <div className="empty-recipes"><strong>まだレシピがありません</strong><span>作成タブから最初のレシピを追加できます</span><Link className="primary-flow-button" href="/create">レシピを作成</Link></div> : null}
       </main>
     </AuthGate>
   );

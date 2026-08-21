@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import { AppIcon } from "@/components/AppIcon";
 import { AuthGate } from "@/components/AuthGate";
 import { useAuth } from "@/contexts/AuthProvider";
-import type { RecipeDraft } from "@/domain/recipe";
-import { RecipeEditor } from "@/features/editor/RecipeEditor";
+import { saveAiReviewSession } from "@/features/creation/creation-session";
 import { normalizeAiDraft } from "@/features/editor/normalizeAiDraft";
 import { authenticatedJson } from "@/lib/authenticated-api";
 import { prepareImages, validateImageFiles } from "@/lib/image-processing";
@@ -15,7 +15,7 @@ import { prepareImages, validateImageFiles } from "@/lib/image-processing";
 export type ImportMode = "ai" | "text" | "screenshot" | "youtube" | "website";
 
 type AiRecipeResponse = {
-  draft: Omit<RecipeDraft, "servings"> & { servings: RecipeDraft["servings"] };
+  draft: Parameters<typeof normalizeAiDraft>[0];
   warnings: string[];
   needsServingsConfirmation: boolean;
   detectedServings: number | null;
@@ -50,17 +50,14 @@ const MODE_META: Record<ImportMode, { title: string; description: string; action
 };
 
 export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
+  const router = useRouter();
   const { user } = useAuth();
   const meta = MODE_META[mode];
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [candidate, setCandidate] = useState<RecipeDraft | null>(null);
-  const [warnings, setWarnings] = useState<string[]>([]);
-  const [needsServingsConfirmation, setNeedsServingsConfirmation] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [importSessionId] = useState(() => crypto.randomUUID());
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -107,9 +104,13 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
         body = { type: mode, url };
       }
       const response = await authenticatedJson<AiRecipeResponse>(user, "/api/ai/extract", { body });
-      setCandidate(normalizeAiDraft(response.draft));
-      setWarnings(response.warnings);
-      setNeedsServingsConfirmation(response.needsServingsConfirmation);
+      saveAiReviewSession({
+        draft: normalizeAiDraft(response.draft),
+        warnings: response.warnings,
+        needsServingsConfirmation: response.needsServingsConfirmation,
+        detectedServings: response.detectedServings,
+      });
+      router.push("/create/ai/review");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "解析に失敗しました。入力内容は保持されています。");
     } finally {
@@ -117,23 +118,10 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
     }
   };
 
-  if (candidate) {
-    return (
-      <RecipeEditor
-        initialDraft={candidate}
-        draftKey={`ai-${mode}-${importSessionId}`}
-        heading="内容を確認"
-        description="この内容はまだ保存されていません。すべての項目を確認し、必要なら手動で修正してください。"
-        warnings={warnings}
-        needsServingsConfirmation={needsServingsConfirmation}
-      />
-    );
-  }
-
   return (
     <AuthGate>
       <main className="page-container flow-page">
-        <header className="flow-header"><Link href="/add" aria-label="作成を閉じる"><AppIcon name="x" size={22} /></Link><h1>{meta.title}</h1></header>
+        <header className="flow-header"><Link href="/create" aria-label="作成を閉じる"><AppIcon name="x" size={22} /></Link><h1>{meta.title}</h1></header>
         <form className="flow-content ai-input" onSubmit={(event) => void submit(event)}>
           <p className="flow-lead">{meta.description}</p>
           {mode === "ai" ? (

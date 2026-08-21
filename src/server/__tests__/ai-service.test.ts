@@ -33,6 +33,9 @@ describe("AI extraction service", () => {
     expect(generate.mock.calls[0][0].systemInstruction).toContain("ingredients（材料）、調味料・油・香辛料・だし類はseasonings（調味料）");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("1/2ではなく0.5");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("同義語へ勝手に置き換えない");
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("warningsへユーザーが確認できる短い文章で記録");
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("tagsは空配列");
+    expect(result.draft.tags).toEqual([]);
   });
 
   it("does not call Gemini when YouTube metadata retrieval fails", async () => {

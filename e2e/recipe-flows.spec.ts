@@ -111,6 +111,10 @@ test("手動作成から保存・一覧・詳細・編集まで完了する", as
   }
 
   await page.getByRole("button", { name: "レシピを保存" }).click();
+  await expect(page).toHaveURL(/\/create\/complete$/);
+  await expect(page.getByRole("heading", { name: "レシピを保存しました" })).toBeVisible();
+  await expect(page.getByText("E2E卵焼き", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /レシピを見る/ }).click();
   await expect(page).toHaveURL(/\/recipes\/[^/]+$/);
   await expect(page.getByRole("heading", { name: "E2E卵焼き" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "調味料" })).toBeVisible();
@@ -140,6 +144,11 @@ test("手動作成から保存・一覧・詳細・編集まで完了する", as
   await page.getByRole("link", { name: "レシピ一覧を閉じる" }).click();
   await page.getByRole("textbox", { name: "レシピを検索" }).fill("E2Eだし巻き卵");
   await expect(page.getByRole("link", { name: /E2Eだし巻き卵/ })).toBeVisible();
+  await page.getByRole("link", { name: /E2Eだし巻き卵/ }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "レシピを削除" }).click();
+  await expect(page).toHaveURL(/\/recipes$/);
+  await expect(page.getByRole("link", { name: /E2Eだし巻き卵/ })).not.toBeVisible();
 });
 
 test("文章取り込みを確認して保存する", async ({ page }) => {
@@ -163,7 +172,7 @@ test("文章取り込みを確認して保存する", async ({ page }) => {
     }],
     tips: [],
     memo: "",
-    tags: ["汁物"],
+    tags: [],
     source: { type: "text", url: null },
   };
   await page.route("**/api/ai/extract", async (route) => {
@@ -185,12 +194,24 @@ test("文章取り込みを確認して保存する", async ({ page }) => {
   await page.getByLabel("レシピの文章", { exact: true }).fill("2人分。味噌30g、水400ml。水を温めて味噌を溶く。");
   await page.getByRole("button", { name: "文章を解析" }).click();
 
-  await expect(page.getByRole("heading", { name: "内容を確認" })).toBeVisible();
+  await expect(page).toHaveURL(/\/create\/ai\/review$/);
+  await expect(page.getByRole("heading", { name: "レシピを確認" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AIからの確認事項" })).toBeVisible();
+  await expect(page.getByText("内容を確認してください。", { exact: true })).toBeVisible();
+  await expect(page.getByText("30g", { exact: true })).toBeVisible();
+  const reviewActionsPosition = await page.locator(".review-fixed-actions").boundingBox();
+  await page.locator(".ai-review-page").evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  const scrolledReviewActionsPosition = await page.locator(".review-fixed-actions").boundingBox();
+  expect(scrolledReviewActionsPosition?.y).toBe(reviewActionsPosition?.y);
+  const reviewContentBottom = await page.locator(".review-content > :last-child").evaluate((element) => element.getBoundingClientRect().bottom);
+  expect(reviewContentBottom).toBeLessThanOrEqual(scrolledReviewActionsPosition?.y ?? 0);
+  await page.getByRole("button", { name: "編集する" }).click();
   await expect(page.getByLabel("料理名 ＊", { exact: true })).toHaveValue("文章からの味噌汁");
   await expect(page.getByLabel("分量", { exact: true }).first()).toHaveValue("30");
   await expect(page.getByLabel("修正指示", { exact: true })).not.toBeVisible();
-  await expect(page.getByText("内容を確認してください。", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "レシピを保存" }).click();
+  await expect(page.getByRole("heading", { name: "レシピを保存しました" })).toBeVisible();
+  await page.getByRole("button", { name: /レシピを見る/ }).click();
   await expect(page.getByRole("heading", { name: "文章からの味噌汁" })).toBeVisible();
 });
 

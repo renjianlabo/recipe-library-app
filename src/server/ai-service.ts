@@ -29,6 +29,9 @@ const BASE_SYSTEM_INSTRUCTION = `あなたはレシピ情報の厳格な抽出�
 ingredientsとseasoningsのIDは互いに重複させず、工程のingredientRefsを該当するIDと必ず一致させてください。
 分量は基本的に分数を使わず、小数で表現してください（例: 1/2ではなく0.5、1 1/2ではなく1.5）。
 材料名・調味料名の表記は入力元を尊重し、同義語へ勝手に置き換えないでください。
+確認できなかった情報、曖昧な情報、入力元内で矛盾する情報は推測せず、warningsへユーザーが確認できる短い文章で記録してください。
+warningsの内容をレシピ本文、tips、memoへ混ぜないでください。
+タグは生成せず、tagsは空配列にしてください。
 返答は指定されたJSON Schemaだけに従ってください。`;
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -85,6 +88,7 @@ function finalizeOutput(output: AiModelOutput, source: Source, extraWarnings: st
     draft: {
       ...output.draft,
       servings: needsServingsConfirmation ? null : output.draft.servings,
+      tags: [],
       source,
     },
     warnings: uniqueWarnings(warnings),
