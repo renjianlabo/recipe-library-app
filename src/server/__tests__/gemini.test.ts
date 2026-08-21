@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   createGeminiRecipeGenerator,
@@ -16,6 +16,10 @@ function transportWith(response: Parameters<GeminiTransport["create"]> extends n
 }
 
 describe("Gemini Interactions recipe generator", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("uses a 45 second default and caps configuration below the Vercel duration", () => {
     expect(resolveAiTimeoutMs(undefined)).toBe(DEFAULT_AI_TIMEOUT_MS);
     expect(resolveAiTimeoutMs("invalid")).toBe(DEFAULT_AI_TIMEOUT_MS);
@@ -54,6 +58,7 @@ describe("Gemini Interactions recipe generator", () => {
   });
 
   it("maps timeout, quota and communication failures to Japanese API errors", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
     const never: GeminiTransport = { create: () => new Promise(() => undefined) };
     await expect(createGeminiRecipeGenerator({ transport: never, timeoutMs: 5 }).generate({
       systemInstruction: "system",
@@ -71,6 +76,52 @@ describe("Gemini Interactions recipe generator", () => {
       systemInstruction: "system",
       input: [{ type: "text", text: "x" }],
     })).rejects.toMatchObject({ code: "AI_UNAVAILABLE", status: 503 });
+  });
+
+  it("logs only safe Gemini status, code and a normalized message", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const sensitiveError = {
+      status: 429,
+      code: "AIza-secret-code",
+      message: [
+        "RESOURCE_EXHAUSTED quota exceeded",
+        "GEMINI_API_KEY=AIza-secret",
+        "FIREBASE_PRIVATE_KEY=-----BEGIN PRIVATE KEY-----secret",
+        "recipe=豚肉の生姜焼き",
+        "image=data:image/png;base64,secret-image",
+        "url=https://private.example/recipe?id=secret",
+      ].join(" "),
+    };
+    const transport: GeminiTransport = {
+      create: async () => { throw sensitiveError; },
+    };
+    const generator = createGeminiRecipeGenerator({ transport });
+
+    await expect(generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "user recipe input" }],
+    })).rejects.toMatchObject({
+      code: "AI_LIMIT_REACHED",
+      message: "AIの利用上限に達しました。しばらく待つか、手動で編集を続けてください。",
+      status: 429,
+    });
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith("[recipe-library-gemini-error]", {
+      status: 429,
+      code: "RESOURCE_EXHAUSTED",
+      message: "Gemini API quota or rate limit exceeded.",
+    });
+    expect(Object.keys(consoleError.mock.calls[0][1] as object))
+      .toEqual(["status", "code", "message"]);
+    const serializedLog = JSON.stringify(consoleError.mock.calls);
+    expect(serializedLog).not.toContain("AIza-secret");
+    expect(serializedLog).not.toContain("secret-code");
+    expect(serializedLog).not.toContain("PRIVATE KEY");
+    expect(serializedLog).not.toContain("豚肉の生姜焼き");
+    expect(serializedLog).not.toContain("secret-image");
+    expect(serializedLog).not.toContain("private.example");
+    expect(serializedLog).not.toContain("user recipe input");
   });
 
   it("requires a successful URL Context result for the exact page", async () => {

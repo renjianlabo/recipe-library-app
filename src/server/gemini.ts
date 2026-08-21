@@ -46,6 +46,82 @@ export type RecipeGenerator = {
 export const DEFAULT_AI_TIMEOUT_MS = 45_000;
 export const MAX_AI_TIMEOUT_MS = 120_000;
 
+type GeminiErrorCandidate = {
+  status?: unknown;
+  statusCode?: unknown;
+  code?: unknown;
+  message?: unknown;
+};
+
+function safeGeminiStatus(error: unknown): number | null {
+  const candidate = error as GeminiErrorCandidate | null;
+  const status = Number(candidate?.status ?? candidate?.statusCode);
+  return Number.isInteger(status) && status >= 100 && status <= 599 ? status : null;
+}
+
+function safeGeminiCode(error: unknown): string | null {
+  const candidate = error as GeminiErrorCandidate | null;
+  const directCode = candidate?.code;
+  if (typeof directCode === "string" || typeof directCode === "number") {
+    const normalized = String(directCode).toUpperCase();
+    const allowedCodes = new Set([
+      "RESOURCE_EXHAUSTED",
+      "INVALID_ARGUMENT",
+      "PERMISSION_DENIED",
+      "UNAUTHENTICATED",
+      "NOT_FOUND",
+      "INTERNAL",
+      "UNAVAILABLE",
+      "DEADLINE_EXCEEDED",
+      "ECONNRESET",
+      "ECONNREFUSED",
+      "ETIMEDOUT",
+      "ENOTFOUND",
+      "EAI_AGAIN",
+      "ABORT_ERR",
+    ]);
+    if (allowedCodes.has(normalized)) return normalized;
+  }
+
+  const message = typeof candidate?.message === "string" ? candidate.message : "";
+  const knownCode = message.match(
+    /\b(RESOURCE_EXHAUSTED|INVALID_ARGUMENT|PERMISSION_DENIED|UNAUTHENTICATED|NOT_FOUND|INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED)\b/u,
+  );
+  return knownCode?.[1] ?? null;
+}
+
+function safeGeminiLogMessage(error: unknown, timedOut: boolean): string {
+  const candidate = error as GeminiErrorCandidate | null;
+  const status = safeGeminiStatus(error);
+  const code = safeGeminiCode(error)?.toUpperCase() ?? "";
+  const message = typeof candidate?.message === "string" ? candidate.message.toLowerCase() : "";
+
+  if (timedOut || (error instanceof Error && error.name === "AbortError")) {
+    return "Gemini API request timed out.";
+  }
+  if (status === 429 || code.includes("RESOURCE_EXHAUSTED") || /quota|rate.?limit/u.test(message)) {
+    return "Gemini API quota or rate limit exceeded.";
+  }
+  if ([400, 401, 403].includes(status ?? 0)
+    || /INVALID_ARGUMENT|PERMISSION_DENIED|UNAUTHENTICATED|NOT_FOUND/u.test(code)
+    || /api.?key|permission|model.*not found/u.test(message)) {
+    return "Gemini API configuration or permission error.";
+  }
+  if ((status ?? 0) >= 500 || /INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED/u.test(code)) {
+    return "Gemini API server error.";
+  }
+  return "Gemini API request failed.";
+}
+
+/** Logs only allowlisted diagnostics; raw SDK messages can contain request data. */
+export function logGeminiApiFailure(error: unknown, timedOut = false): void {
+  console.error("[recipe-library-gemini-error]", {
+    status: safeGeminiStatus(error),
+    code: safeGeminiCode(error),
+    message: safeGeminiLogMessage(error, timedOut),
+  });
+}
+
 export function resolveAiTimeoutMs(value: unknown): number {
   const configured = Number(value);
   return Number.isFinite(configured) && configured >= 1_000
@@ -190,6 +266,7 @@ export function createGeminiRecipeGenerator(options: {
           timeoutPromise,
         ]);
       } catch (error) {
+        logGeminiApiFailure(error, timedOut);
         throw classifyGeminiError(error, timedOut);
       } finally {
         if (timeoutHandle) clearTimeout(timeoutHandle);
