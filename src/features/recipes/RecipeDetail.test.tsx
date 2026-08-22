@@ -55,6 +55,18 @@ afterEach(() => {
 });
 
 describe("RecipeDetail deletion", () => {
+  it("keeps the edit and cooking links together in one floating action bar", () => {
+    render(<RecipeDetail recipeId="recipe-1" />);
+
+    const editLink = screen.getByRole("link", { name: "編集する" });
+    const cookingLink = screen.getByRole("link", { name: /料理モードを開始/ });
+    const actionBar = editLink.closest("footer");
+    expect(actionBar).toHaveClass("detail-actions", "floating-action-bar");
+    expect(actionBar).toContainElement(cookingLink);
+    expect(editLink).toHaveAttribute("href", "/recipes/recipe-1/edit");
+    expect(cookingLink).toHaveAttribute("href", "/cook/recipe-1?servings=2");
+  });
+
   it("deletes the signed-in user's recipe and returns only after success", async () => {
     render(<RecipeDetail recipeId="recipe-1" />);
     fireEvent.click(screen.getByRole("button", { name: "レシピを削除" }));
@@ -95,6 +107,8 @@ describe("RecipeDetail deletion", () => {
     expect(screen.queryByRole("heading", { name: "調味料" })).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "作り方" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /料理モードを開始/ })).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "編集する" })).toBeInTheDocument();
+    const editLink = screen.getByRole("link", { name: "編集する" });
+    expect(editLink.closest("footer")).toHaveClass("detail-actions", "detail-actions--single", "floating-action-bar");
+    expect(editLink).toHaveAttribute("href", "/recipes/recipe-1/edit");
   });
 });

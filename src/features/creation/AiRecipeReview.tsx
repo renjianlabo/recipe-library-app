@@ -135,7 +135,7 @@ export function AiRecipeReview() {
           {saveError ? <p className="alert error review-save-error" role="alert">{saveError}</p> : null}
         </div>
 
-        <footer className="flow-actions review-fixed-actions">
+        <footer className="flow-actions review-fixed-actions floating-action-bar">
           <button type="button" className="secondary-flow-button" disabled={saving} onClick={() => router.push("/create/manual?mode=edit")}>編集する</button>
           <button type="button" className="primary-flow-button" disabled={saving} onClick={() => void save()}>{saving ? "保存中…" : "このレシピを保存"}</button>
         </footer>

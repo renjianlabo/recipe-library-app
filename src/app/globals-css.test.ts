@@ -20,16 +20,29 @@ describe("mobile form control typography", () => {
 });
 
 describe("recipe editor save bar", () => {
-  it("fixes the shared save bar above the safe area within the app width", () => {
+  it("floats the shared save bar above the safe area within the app width", () => {
     expect(css).toMatch(/\.manual-save\s*\{[^}]*position:\s*fixed;/u);
     expect(css).toMatch(/\.manual-save\s*\{[^}]*bottom:[^;]*100dvh\s*-\s*874px/u);
     expect(css).toMatch(/\.manual-save\s*\{[^}]*100vw\s*-\s*402px/u);
     expect(css).toMatch(/\.manual-save\s*\{[^}]*env\(safe-area-inset-bottom\)/u);
+    expect(css).toMatch(/\.floating-action-bar\s*\{[^}]*border-radius:\s*22px;[^}]*box-shadow:/u);
   });
 
   it("reserves scroll space for the final editor fields", () => {
     expect(css).toMatch(
       /\.page-container\.editor-page\.manual-content\s*\{[^}]*padding:[^;]*124px[^;]*safe-area-inset-bottom[^;]*;[^}]*scroll-padding-bottom:[^;]*104px[^;]*safe-area-inset-bottom/u,
     );
+  });
+});
+
+describe("floating primary actions", () => {
+  it("keeps detail and review actions away from the viewport edges", () => {
+    expect(css).toMatch(/\.detail-actions\s*\{[^}]*right:\s*16px;[^}]*bottom:[^;]*safe-area-inset-bottom[^}]*left:\s*16px/u);
+    expect(css).toMatch(/\.review-fixed-actions\s*\{[^}]*right:\s*16px;[^}]*bottom:[^;]*safe-area-inset-bottom[^}]*left:\s*16px/u);
+  });
+
+  it("floats the AI create action and reserves scroll space", () => {
+    expect(css).toMatch(/\.ai-create-actions\s*\{[^}]*position:\s*fixed;[^}]*100vw\s*-\s*402px[^}]*safe-area-inset-bottom/u);
+    expect(css).toMatch(/\.ai-action-page\s*\{[^}]*padding-bottom:[^;]*132px[^;]*safe-area-inset-bottom[^}]*scroll-padding-bottom:/u);
   });
 });

@@ -53,7 +53,7 @@ describe("RecipeEditor save action", () => {
 
     const buttons = screen.getAllByRole("button", { name: "レシピを保存" });
     expect(buttons).toHaveLength(1);
-    expect(buttons[0].closest("footer")).toHaveClass("manual-save");
+    expect(buttons[0].closest("footer")).toHaveClass("manual-save", "floating-action-bar");
     fireEvent.click(buttons[0]);
 
     await waitFor(() => expect(recipeApi.saveRecipe).toHaveBeenCalledTimes(1));
@@ -77,7 +77,9 @@ describe("RecipeEditor save action", () => {
       />,
     );
 
-    expect(screen.getAllByRole("button", { name: "変更を保存" })).toHaveLength(1);
+    const buttons = screen.getAllByRole("button", { name: "変更を保存" });
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0].closest("footer")).toHaveClass("manual-save", "floating-action-bar");
     expect(screen.queryByRole("button", { name: "レシピを保存" })).not.toBeInTheDocument();
   });
 });

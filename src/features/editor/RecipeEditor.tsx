@@ -152,7 +152,7 @@ export function RecipeEditor({
         <RecipeFieldsEditor draft={draft} onChange={setEditorDraft} />
 
         {saveError ? <p className="alert error" role="alert">{saveError}</p> : null}
-        <footer className="manual-save">
+        <footer className="manual-save floating-action-bar">
           <button className="primary-flow-button" type="button" disabled={saving} onClick={() => void handleSave()}>
             {saving ? "保存中…" : saveLabel}
           </button>

@@ -79,7 +79,7 @@ export function RecipeDetail({ recipeId }: { recipeId: string }) {
           {(recipe.source.type === "youtube" || recipe.source.type === "website") && recipe.source.url ? <section className="detail-section detail-note"><h2>出典</h2><a className="source-link" href={recipe.source.url} target="_blank" rel="noreferrer noopener">{recipe.source.url}</a></section> : null}
         </div>
 
-        <footer className={`detail-actions${recipe.steps.length ? "" : " detail-actions--single"}`}><Link href={`/recipes/${encodeURIComponent(recipe.id)}/edit`}>編集する</Link>{recipe.steps.length ? <Link href={`/cook/${encodeURIComponent(recipe.id)}${selectedServings === null ? "" : `?servings=${selectedServings}`}`}>料理モードを開始 <AppIcon name="arrow" size={17} /></Link> : null}</footer>
+        <footer className={`detail-actions floating-action-bar${recipe.steps.length ? "" : " detail-actions--single"}`}><Link href={`/recipes/${encodeURIComponent(recipe.id)}/edit`}>編集する</Link>{recipe.steps.length ? <Link href={`/cook/${encodeURIComponent(recipe.id)}${selectedServings === null ? "" : `?servings=${selectedServings}`}`}>料理モードを開始 <AppIcon name="arrow" size={17} /></Link> : null}</footer>
       </main>
     </AuthGate>
   );

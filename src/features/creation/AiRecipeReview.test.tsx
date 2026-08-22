@@ -65,6 +65,7 @@ describe("AiRecipeReview", () => {
     render(<AiRecipeReview />);
 
     expect(await screen.findByText("確認が必要な項目はありません", { exact: true })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "このレシピを保存" }).closest("footer")).toHaveClass("review-fixed-actions", "floating-action-bar");
     expect(screen.queryByRole("heading", { name: "AIからの確認事項" })).not.toBeInTheDocument();
     expect(document.querySelector(".ai-review-notes")).not.toBeInTheDocument();
   });

@@ -120,7 +120,7 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
 
   return (
     <AuthGate>
-      <main className="page-container flow-page">
+      <main className="page-container flow-page ai-action-page">
         <header className="flow-header"><Link href="/create" aria-label="作成を閉じる"><AppIcon name="x" size={22} /></Link><h1>{meta.title}</h1></header>
         <form className="flow-content ai-input" onSubmit={(event) => void submit(event)}>
           <p className="flow-lead">{meta.description}</p>
@@ -186,8 +186,10 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
             </label>
           ) : null}
           {error ? <p className="alert error" role="alert">{error}</p> : null}
-          <button className="primary-flow-button" type="submit" disabled={loading || (mode === "screenshot" && files.length === 0) || (mode === "ai" && !text.trim() && files.length === 0)}>{loading ? "レシピを作成中…" : <>{meta.action} <AppIcon name="arrow" size={18} /></>}</button>
           <p className="flow-note">AIが情報を整理します。内容は保存前に確認できます。</p>
+          <footer className="ai-create-actions floating-action-bar">
+            <button className="primary-flow-button" type="submit" disabled={loading || (mode === "screenshot" && files.length === 0) || (mode === "ai" && !text.trim() && files.length === 0)}>{loading ? "レシピを作成中…" : <>{meta.action} <AppIcon name="arrow" size={18} /></>}</button>
+          </footer>
         </form>
       </main>
     </AuthGate>
