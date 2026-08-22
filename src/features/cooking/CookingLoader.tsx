@@ -48,7 +48,18 @@ export function CookingLoader({ recipeId, servings }: { recipeId: string; servin
       </AuthGate>
     );
   }
-  const selectedServings: SupportedServings = isSupportedServings(servings) ? servings : recipe.servings;
+  if (recipe.steps.length === 0) {
+    return (
+      <AuthGate>
+        <main className="center-screen narrow-panel">
+          <h1>料理モードを開始できません</h1>
+          <p>作り方が登録されていません。</p>
+          <Link className="button primary" href={`/recipes/${encodeURIComponent(recipe.id)}`}>レシピへ戻る</Link>
+        </main>
+      </AuthGate>
+    );
+  }
+  const selectedServings: SupportedServings | null = isSupportedServings(servings) ? servings : recipe.servings;
   return (
     <AuthGate>
       <CookingMode

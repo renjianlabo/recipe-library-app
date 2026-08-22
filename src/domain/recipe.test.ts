@@ -95,9 +95,101 @@ describe("recipe schemas", () => {
     expect(recipeSchema.parse(legacyStoredRecipe).seasonings).toBeUndefined();
   });
 
-  it("rejects unresolved or unsupported servings at finalization", () => {
-    expect(() => finalizeRecipeDraft(validDraft({ servings: null }), metadata)).toThrow();
+  it("allows an unresolved serving count but rejects unsupported values", () => {
+    expect(finalizeRecipeDraft(validDraft({ servings: null }), metadata).servings).toBeNull();
     expect(recipeDraftSchema.safeParse({ ...validDraft(), servings: 3.5 }).success).toBe(false);
+  });
+
+  it("requires only a title and category when finalizing a recipe", () => {
+    const minimal = finalizeRecipeDraft({
+      ...createEmptyRecipeDraft(),
+      title: "後で編集するメモ",
+      category: "other",
+    }, metadata);
+    expect(minimal).toMatchObject({
+      title: "後で編集するメモ",
+      category: "other",
+      servings: null,
+      ingredients: [],
+      seasonings: [],
+      steps: [],
+    });
+
+    const seasoningOnly = finalizeRecipeDraft(validDraft({
+      servings: null,
+      ingredients: [],
+      seasonings: [{
+        id: "seasoning-1",
+        name: "醤油",
+        amountText: "",
+        numericAmount: null,
+        unit: "",
+        note: "",
+      }],
+      steps: [],
+    }), metadata);
+    expect(seasoningOnly.seasonings).toHaveLength(1);
+    expect(seasoningOnly.steps).toEqual([]);
+
+    const ingredientNameOnly = finalizeRecipeDraft(validDraft({
+      ingredients: [{
+        id: "ingredient-1",
+        name: "トマト",
+        amountText: "",
+        numericAmount: null,
+        unit: "",
+        note: "",
+      }],
+      steps: [],
+    }), metadata);
+    expect(ingredientNameOnly.ingredients[0]).toMatchObject({ name: "トマト", amountText: "", unit: "" });
+
+    const stepOnly = finalizeRecipeDraft(validDraft({
+      ingredients: [],
+      steps: [{ ...validDraft().steps[0], ingredientRefs: [] }],
+    }), metadata);
+    expect(stepOnly.ingredients).toEqual([]);
+    expect(stepOnly.steps).toHaveLength(1);
+
+    const itemsWithoutSteps = finalizeRecipeDraft(validDraft({
+      ingredients: validDraft().ingredients,
+      seasonings: [{
+        id: "seasoning-1",
+        name: "塩",
+        amountText: "適量",
+        numericAmount: null,
+        unit: "",
+        note: "",
+      }],
+      steps: [],
+    }), metadata);
+    expect(itemsWithoutSteps.steps).toEqual([]);
+  });
+
+  it("keeps partial rows invalid and still requires title and category", () => {
+    expect(() => finalizeRecipeDraft(validDraft({ title: "" }), metadata)).toThrow("レシピ名を入力してください");
+    expect(recipeDraftSchema.safeParse({ ...validDraft(), category: undefined }).success).toBe(false);
+    expect(recipeDraftSchema.safeParse({ ...validDraft(), category: "invalid" }).success).toBe(false);
+    expect(() => finalizeRecipeDraft(validDraft({
+      ingredients: [{
+        id: "ingredient-1",
+        name: "",
+        amountText: "1",
+        numericAmount: 1,
+        unit: "個",
+        note: "",
+      }],
+      steps: [],
+    }), metadata)).toThrow("材料名を入力してください");
+  });
+
+  it("accepts an AI draft with no ingredients or steps", () => {
+    expect(recipeDraftSchema.safeParse(validDraft({
+      servings: null,
+      ingredients: [],
+      seasonings: [],
+      steps: [],
+    })).success).toBe(true);
   });
 
   it("enforces source URL rules", () => {

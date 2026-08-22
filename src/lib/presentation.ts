@@ -14,6 +14,6 @@ export const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS) as Array<[
   string,
 ]>;
 
-export function servingsLabel(servings: Recipe["servings"]): string {
-  return `${servings}人前`;
+export function servingsLabel(servings: Recipe["servings"]): string | null {
+  return servings === null ? null : `${servings}人前`;
 }

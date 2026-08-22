@@ -24,7 +24,9 @@ export function deriveStepIngredients(
   step: RecipeStep,
   selectedServings: Recipe["servings"],
 ): DerivedStepIngredient[] {
-  const scale = selectedServings / recipe.servings;
+  const scale = selectedServings !== null && recipe.servings !== null
+    ? selectedServings / recipe.servings
+    : 1;
   const ingredients = new Map(
     [...recipe.ingredients, ...(recipe.seasonings ?? [])]
       .map((ingredient) => [ingredient.id, ingredient]),

@@ -196,12 +196,15 @@ export function normalizeNumericAmount(value: unknown): number | null {
 
 export function formatScaledIngredientAmount(
   ingredient: IngredientAmount & { unit: string },
-  savedServings: number,
-  selectedServings: number,
+  savedServings: number | null,
+  selectedServings: number | null,
   multiplier = 1,
 ): FormattedIngredientAmount {
   const unit = cleanAmountText(ingredient.unit);
-  const scale = savedServings > 0 && Number.isFinite(savedServings)
+  const scale = savedServings !== null
+    && selectedServings !== null
+    && savedServings > 0
+    && Number.isFinite(savedServings)
     ? selectedServings / savedServings
     : 1;
   const multiplierIsOne = Math.abs(scale * multiplier - 1) < 1e-9;

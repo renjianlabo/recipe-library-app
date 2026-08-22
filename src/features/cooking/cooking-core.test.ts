@@ -125,6 +125,19 @@ describe("cooking sessions", () => {
       uid: "user-1",
       recipe: recipe({ servings: 5 as Recipe["servings"] }),
     })).toThrow("unsupported serving count");
+    expect(() => createCookingSession({
+      uid: "user-1",
+      recipe: recipe({ steps: [] }),
+    })).toThrow("recipe has no cooking steps");
+  });
+
+  it("keeps an unset serving count without inventing a cooking default", () => {
+    const session = createCookingSession({
+      uid: "user-1",
+      recipe: recipe({ servings: null }),
+    });
+    expect(session.selectedServings).toBeNull();
+    expect(cookingSessionSchema.safeParse(session).success).toBe(true);
   });
 
   it("drops an invalid suggested timer without breaking the cooking session", () => {

@@ -45,8 +45,13 @@ describe("RecipeFieldsEditor", () => {
   it("shows the Figma section order without AI revision controls", () => {
     render(<Harness />);
     expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
-      "基本情報", "材料 ＊", "調味料", "作り方 ＊", "その他",
+      "基本情報", "材料", "調味料", "作り方", "その他",
     ]);
+    expect(screen.getByText("料理名 ＊")).toBeInTheDocument();
+    expect(screen.getByText("カテゴリー ＊")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: /カテゴリー/ })).toBeRequired();
+    expect(screen.getByText("人数")).toBeInTheDocument();
+    expect(screen.queryByText("人数 ＊")).not.toBeInTheDocument();
     expect(screen.queryByText("AIに追加修正を頼む")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("修正指示")).not.toBeInTheDocument();
     expect(screen.queryByText("工程タイトルは不要です")).not.toBeInTheDocument();

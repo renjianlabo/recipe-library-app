@@ -97,7 +97,7 @@ export const ingredientSchema = z.object({
   ...ingredientShape,
   name: z.string().trim().min(1, "材料名を入力してください").max(120),
 }).strict().superRefine((value, context) => {
-  addIngredientAmountIssues(value, context, false);
+  addIngredientAmountIssues(value, context, true);
 });
 
 export const stepIngredientRefSchema = z.object({
@@ -299,10 +299,10 @@ export const recipeSchema = z.object({
   title: z.string().trim().min(1, "レシピ名を入力してください").max(120),
   imageDataUrl: recipeDraftShape.imageDataUrl,
   category: z.enum(RECIPE_CATEGORIES),
-  servings: allowedServingSchema,
-  ingredients: z.array(ingredientSchema).min(1, "材料を1件以上入力してください").max(100),
+  servings: allowedServingSchema.nullable(),
+  ingredients: z.array(ingredientSchema).max(100),
   seasonings: z.array(ingredientSchema).max(100).optional(),
-  steps: z.array(recipeStepSchema).min(1, "工程を1件以上入力してください").max(100),
+  steps: z.array(recipeStepSchema).max(100),
   tips: z.array(z.string().trim().min(1).max(500)).max(50),
   memo: recipeDraftShape.memo,
   tags: z.array(z.string().trim().min(1).max(50)).max(50),
@@ -339,7 +339,7 @@ export function createEmptyRecipeDraft(): RecipeDraft {
     title: "",
     imageDataUrl: null,
     category: "other",
-    servings: 2,
+    servings: null,
     ingredients: [{
       id: "ingredient-1",
       name: "",
@@ -368,13 +368,13 @@ function uniqueTrimmed(values: readonly string[]): string[] {
 }
 
 export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
-  const normalizeItems = (items: readonly IngredientDraft[]): IngredientDraft[] => items.map((ingredient) => {
+  const normalizeItems = (items: readonly IngredientDraft[]): IngredientDraft[] => items.flatMap((ingredient) => {
     const amount = normalizeIngredientAmount(
       ingredient.amountText,
       ingredient.numericAmount,
       ingredient.unit,
     );
-    return {
+    const normalized = {
       ...ingredient,
       id: ingredient.id.trim(),
       name: ingredient.name.trim(),
@@ -386,23 +386,38 @@ export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
         ? {}
         : { nutritionFoodId: ingredient.nutritionFoodId?.trim() || null }),
     };
+    const isCompletelyEmpty = !normalized.name
+      && !normalized.amountText
+      && !normalized.unit
+      && !normalized.note
+      && !normalized.nutritionFoodId;
+    return isCompletelyEmpty ? [] : [normalized];
   });
   const ingredients = normalizeItems(draft.ingredients);
   const seasonings = normalizeItems(draft.seasonings ?? []);
+  const retainedItemIds = new Set([...ingredients, ...seasonings].map((item) => item.id));
+  const removedEmptyItemIds = new Set(
+    [...draft.ingredients, ...(draft.seasonings ?? [])]
+      .map((item) => item.id.trim())
+      .filter((id) => id && !retainedItemIds.has(id)),
+  );
   const timerLabels = draft.steps.flatMap((step) => step.timers.map((timer) => timer.label.trim()).filter(Boolean));
 
-  const steps = draft.steps.map((step, stepIndex) => ({
+  const normalizedSteps = draft.steps.flatMap((step) => {
+    const normalizedStep = {
     ...step,
     id: step.id.trim(),
-    order: stepIndex + 1,
+    order: 1,
     text: step.text.trim(),
-    ingredientRefs: step.ingredientRefs.map((reference) => ({
-      ingredientId: reference.ingredientId.trim(),
-      usage: reference.usage,
-      ...(reference.usage === "custom" && reference.customAmountText !== undefined
-        ? { customAmountText: cleanAmountText(reference.customAmountText) }
-        : {}),
-    })),
+    ingredientRefs: step.ingredientRefs
+      .map((reference) => ({
+        ingredientId: reference.ingredientId.trim(),
+        usage: reference.usage,
+        ...(reference.usage === "custom" && reference.customAmountText !== undefined
+          ? { customAmountText: cleanAmountText(reference.customAmountText) }
+          : {}),
+      }))
+      .filter((reference) => !removedEmptyItemIds.has(reference.ingredientId)),
     timers: step.timers.map((timer) => {
       const label = timer.label.normalize("NFKC").trim() || nextTimerLabel(timerLabels);
       timerLabels.push(label);
@@ -413,7 +428,13 @@ export function normalizeRecipeDraft(draft: RecipeDraft): RecipeDraft {
         seconds: Math.round(timer.seconds),
       };
     }),
-  }));
+    };
+    const isCompletelyEmpty = !normalizedStep.text
+      && normalizedStep.ingredientRefs.length === 0
+      && normalizedStep.timers.length === 0;
+    return isCompletelyEmpty ? [] : [normalizedStep];
+  });
+  const steps = normalizedSteps.map((step, stepIndex) => ({ ...step, order: stepIndex + 1 }));
 
   const normalized: RecipeDraft = {
     ...draft,

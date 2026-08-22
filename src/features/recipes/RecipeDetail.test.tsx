@@ -83,4 +83,18 @@ describe("RecipeDetail deletion", () => {
     expect(recipeApi.deleteRecipe).not.toHaveBeenCalled();
     expect(navigation.replace).not.toHaveBeenCalled();
   });
+
+  it("hides empty sections, serving controls, and cooking mode for a minimal recipe", () => {
+    const minimal = { ...recipe(), servings: null, ingredients: [], seasonings: [], steps: [] };
+    recipeApi.recipes = [minimal];
+    recipeApi.getRecipe.mockResolvedValue(minimal);
+    render(<RecipeDetail recipeId="recipe-1" />);
+
+    expect(screen.queryByRole("combobox", { name: "人数" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "材料" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "調味料" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "作り方" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /料理モードを開始/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "編集する" })).toBeInTheDocument();
+  });
 });

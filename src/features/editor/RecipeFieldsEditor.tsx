@@ -262,13 +262,13 @@ export function RecipeFieldsEditor({ draft, onChange }: {
           {imageError ? <p className="auth-error" role="alert">{imageError}</p> : null}
         </div>
         <div className="form-grid">
-          <label className="form-label"><span>カテゴリー ＊</span><select value={draft.category} onChange={(event) => onChange({ ...draft, category: event.target.value as RecipeDraft["category"] })}>{CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          <label className="form-label"><span>人数 ＊</span><select value={draft.servings ?? ""} onChange={(event) => onChange({ ...draft, servings: Number(event.target.value) as RecipeDraft["servings"] })}><option value="" disabled>人数を選択</option>{ALLOWED_SERVINGS.map((value) => <option key={value} value={value}>{value}人前</option>)}</select></label>
+          <label className="form-label"><span>カテゴリー ＊</span><select value={draft.category} required onChange={(event) => onChange({ ...draft, category: event.target.value as RecipeDraft["category"] })}>{CATEGORY_OPTIONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="form-label"><span>人数</span><select value={draft.servings ?? ""} onChange={(event) => onChange({ ...draft, servings: event.target.value ? Number(event.target.value) as RecipeDraft["servings"] : null })}><option value="">未設定</option>{ALLOWED_SERVINGS.map((value) => <option key={value} value={value}>{value}人前</option>)}</select></label>
         </div>
       </section>
 
       <section className="form-section">
-        <div className="form-section-head"><h2>材料 ＊</h2><small>分量は「適量」なども入力できます</small></div>
+        <div className="form-section-head"><h2>材料</h2><small>分量は「適量」なども入力できます</small></div>
         <div className="ingredient-list">{draft.ingredients.map((ingredient, index) => <ItemFields key={ingredient.id} item={ingredient} kind="材料" index={index} canDelete={draft.ingredients.length > 1} onUpdate={(patch) => onChange({ ...draft, ingredients: draft.ingredients.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) })} onDelete={() => removeItem(ingredient.id, "ingredient")} />)}</div>
         <button className="manual-add-button" type="button" onClick={() => onChange({ ...draft, ingredients: [...draft.ingredients, emptyItem("ingredient")] })}>＋ 材料を追加</button>
       </section>
@@ -280,7 +280,7 @@ export function RecipeFieldsEditor({ draft, onChange }: {
       </section>
 
       <section className="form-section">
-        <div className="form-section-head"><h2>作り方 ＊</h2></div>
+        <div className="form-section-head"><h2>作り方</h2></div>
         <div className="step-list">{draft.steps.map((step, index) => <div className="step-editor-block" key={step.id}><div className="step-field"><span className="step-number">{index + 1}</span><label className="visually-hidden" htmlFor={`${step.id}-text`}>手順{index + 1}</label><textarea id={`${step.id}-text`} rows={3} maxLength={4000} value={step.text} placeholder="手順を入力" onChange={(event) => onChange({ ...draft, steps: draft.steps.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item) })} />{draft.steps.length > 1 ? <button className="ingredient-delete" type="button" onClick={() => onChange({ ...draft, steps: reorderSteps(draft.steps.filter((_, itemIndex) => itemIndex !== index)) })} aria-label={`手順${index + 1}を削除`}><AppIcon name="trash" size={15} /></button> : <span aria-hidden="true" />}</div><StepTimerEditor step={step} allTimerLabels={allTimerLabels} onChange={(timers) => onChange({ ...draft, steps: draft.steps.map((item, itemIndex) => itemIndex === index ? { ...item, timers } : item) })} /></div>)}</div>
         <button className="manual-add-button" type="button" onClick={() => onChange({ ...draft, steps: [...draft.steps, emptyStep(draft.steps.length + 1)] })}>＋ 手順を追加</button>
       </section>

@@ -75,23 +75,17 @@ export function RecipeEditor({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<{ attemptedRecipe: Recipe } | null>(null);
-  const [servingsConfirmed, setServingsConfirmed] = useState(!needsServingsConfirmation);
   const [recipeId] = useState(() => existingRecipe?.id ?? crypto.randomUUID());
   const autosave = useDraftAutosave({ draftKey, value: draft });
 
   const setEditorDraft = useCallback((next: RecipeDraft) => {
-    if (next.servings !== draft.servings && next.servings !== null) setServingsConfirmed(true);
     setDraft(next);
     setSaveError(null);
-  }, [draft.servings]);
+  }, []);
 
   const handleSave = async () => {
     if (!user) {
       setSaveError("保存するにはログインしてください。");
-      return;
-    }
-    if (draft.servings === null || !servingsConfirmed) {
-      setSaveError("人数を確認して、0.5・1・2・3・4人前から選択してください。");
       return;
     }
     setSaving(true);
@@ -137,7 +131,6 @@ export function RecipeEditor({
       return;
     }
     setDraft(parsed.data);
-    setServingsConfirmed(parsed.data.servings !== null);
   };
 
   const saveLabel = baseRecipe ? "変更を保存" : "レシピを保存";
@@ -149,8 +142,8 @@ export function RecipeEditor({
         <p className="manual-lead">{description}</p>
 
         {warnings.map((warning) => <p className="alert warning" key={warning}>{warning}</p>)}
-        {needsServingsConfirmation && !servingsConfirmed ? (
-          <p className="alert warning" role="status">元の情報から人数を確定できませんでした。必ず人数を選択して内容を確認してください。</p>
+        {needsServingsConfirmation && draft.servings === null ? (
+          <p className="alert warning" role="status">元の情報から人数を確定できなかったため、未設定にしています。</p>
         ) : null}
         {autosave.saveError ? <p className="alert warning" role="status">{autosave.saveError}</p> : null}
 
@@ -200,7 +193,6 @@ export function RecipeEditor({
                     }
                     setBaseRecipe(latest);
                     setDraft(recipeToDraft(latest));
-                    setServingsConfirmed(true);
                     setConflict(null);
                   })
                   .catch(() => setSaveError("最新のレシピを読み込めませんでした。現在の入力は保持しています。"))

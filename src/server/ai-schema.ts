@@ -13,8 +13,13 @@ import {
 export { allowedServingSchema, recipeDraftSchema } from "../domain/recipe";
 export type { RecipeDraft } from "../domain/recipe";
 
+const aiRecipeDraftSchema = recipeDraftSchema.refine(
+  (draft) => Boolean(draft.title.trim()),
+  { path: ["title"], message: "レシピ名を入力してください" },
+);
+
 export const aiModelOutputSchema = z.strictObject({
-  draft: recipeDraftSchema,
+  draft: aiRecipeDraftSchema,
   warnings: z.array(z.string().trim().min(1).max(500)).max(50),
   detectedServings: z.number().finite().positive().max(1_000).nullable(),
 });

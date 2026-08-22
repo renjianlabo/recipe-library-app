@@ -6,6 +6,7 @@ import type { Recipe } from "@/domain/recipe";
 import { CATEGORY_LABELS, servingsLabel } from "@/lib/presentation";
 
 export function RecipeCard({ recipe }: { recipe: Recipe }) {
+  const serving = servingsLabel(recipe.servings);
   return (
     <Link className="recipe-card recipe-card--button" href={`/recipes/${encodeURIComponent(recipe.id)}`} aria-label={`${recipe.title}の詳細を見る`}>
       <div className="recipe-card__body">
@@ -14,7 +15,7 @@ export function RecipeCard({ recipe }: { recipe: Recipe }) {
           {recipe.ingredients.slice(0, 3).map((ingredient) => <span key={ingredient.id}>{ingredient.name}</span>)}
         </div>
         <div className="recipe-meta">
-          <span>{CATEGORY_LABELS[recipe.category]}</span><i /><span>{servingsLabel(recipe.servings)}</span>
+          <span>{CATEGORY_LABELS[recipe.category]}</span>{serving ? <><i /><span>{serving}</span></> : null}
         </div>
       </div>
       {recipe.imageDataUrl ? <Image className="recipe-thumb" src={recipe.imageDataUrl} alt="" width={64} height={64} unoptimized /> : null}

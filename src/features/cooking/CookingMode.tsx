@@ -53,7 +53,7 @@ interface RestoreCandidate {
 export interface CookingModeProps {
   uid: string;
   recipe: Recipe;
-  selectedServings?: SupportedServings;
+  selectedServings?: SupportedServings | null;
   returnHref?: string;
 }
 

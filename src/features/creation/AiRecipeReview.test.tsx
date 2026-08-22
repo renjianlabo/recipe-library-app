@@ -99,4 +99,28 @@ describe("AiRecipeReview", () => {
     expect(readAiReviewSession()).not.toBeNull();
     expect(readCompletionReceipt()).toBeNull();
   });
+
+  it("saves an AI draft with unresolved servings and no ingredients or steps", async () => {
+    saveAiReviewSession({
+      draft: { ...draft(), servings: null, ingredients: [], seasonings: [], steps: [] },
+      warnings: ["人数と作り方を確認できませんでした。"],
+      needsServingsConfirmation: true,
+      detectedServings: null,
+    });
+    render(<AiRecipeReview />);
+
+    expect(await screen.findByRole("heading", { name: "豚肉の生姜焼き" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "材料" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "作り方" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "このレシピを保存" }));
+
+    await waitFor(() => expect(recipeApi.saveRecipe).toHaveBeenCalledTimes(1));
+    expect(recipeApi.saveRecipe.mock.calls[0][0]).toMatchObject({
+      servings: null,
+      ingredients: [],
+      seasonings: [],
+      steps: [],
+    });
+    expect(navigation.replace).toHaveBeenCalledWith("/create/complete");
+  });
 });

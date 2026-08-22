@@ -56,10 +56,6 @@ export function AiRecipeReview() {
       setSaveError("保存するにはログインしてください。");
       return;
     }
-    if (session.draft.servings === null || session.needsServingsConfirmation) {
-      setSaveError("人数を確認して、編集画面で0.5・1・2・3・4人前から選択してください。");
-      return;
-    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -121,12 +117,12 @@ export function AiRecipeReview() {
           <section className="review-title">
             <p>レシピ名</p>
             <h2>{draft.title}</h2>
-            <div><span>{CATEGORY_LABELS[draft.category]}</span><span>{draft.servings === null ? "人数未確認" : `${draft.servings}人前`}</span></div>
+            <div><span>{CATEGORY_LABELS[draft.category]}</span>{draft.servings === null ? null : <span>{draft.servings}人前</span>}</div>
           </section>
 
-          <section className="review-section"><h3>材料</h3><IngredientReview items={draft.ingredients} /></section>
+          {draft.ingredients.length ? <section className="review-section"><h3>材料</h3><IngredientReview items={draft.ingredients} /></section> : null}
           {draft.seasonings?.length ? <section className="review-section"><h3>調味料</h3><IngredientReview items={draft.seasonings} /></section> : null}
-          <section className="review-section"><h3>作り方</h3><ol className="step-review">{draft.steps.map((step, index) => <li key={step.id}><span>{index + 1}</span><p>{step.text}</p></li>)}</ol></section>
+          {draft.steps.length ? <section className="review-section"><h3>作り方</h3><ol className="step-review">{draft.steps.map((step, index) => <li key={step.id}><span>{index + 1}</span><p>{step.text}</p></li>)}</ol></section> : null}
 
           {hasOther ? (
             <section className="review-section review-other">

@@ -122,7 +122,7 @@ function finalizeOutput(output: AiModelOutput, source: Source, extraWarnings: st
   const needsServingsConfirmation = !draftServingsAllowed || (detectedServings !== null && !detectedAllowed);
   const warnings = [...extraWarnings, ...output.warnings];
   if (needsServingsConfirmation) {
-    warnings.push("人数を0.5、1、2、3、4人前から選んでください。検出した人数を勝手に丸めていません。");
+    warnings.push("人数を特定できなかったため未設定にしています。検出した人数を勝手に丸めていません。");
   }
 
   return {

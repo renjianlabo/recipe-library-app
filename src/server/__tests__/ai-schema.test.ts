@@ -104,4 +104,22 @@ describe("Gemini Structured Output schema", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("requires an AI recipe title but accepts empty optional recipe content", () => {
+    const validOutput = modelOutput();
+    expect(aiModelOutputSchema.safeParse({
+      ...validOutput,
+      draft: {
+        ...validOutput.draft,
+        servings: null,
+        ingredients: [],
+        seasonings: [],
+        steps: [],
+      },
+    }).success).toBe(true);
+    expect(aiModelOutputSchema.safeParse({
+      ...validOutput,
+      draft: { ...validOutput.draft, title: "" },
+    }).success).toBe(false);
+  });
 });

@@ -56,7 +56,7 @@ export interface CookingSession {
   sessionId: string;
   recipeId: string;
   recipe: Recipe;
-  selectedServings: SupportedServings;
+  selectedServings: SupportedServings | null;
   currentStepIndex: number;
   timers: CookingTimer[];
   usedTimerNumbers: number[];
@@ -107,7 +107,7 @@ export const cookingSessionSchema = z
     sessionId: z.string().trim().min(1),
     recipeId: z.string().trim().min(1),
     recipe: recipeSchema,
-    selectedServings: allowedServingSchema,
+    selectedServings: allowedServingSchema.nullable(),
     currentStepIndex: z.number().int().nonnegative(),
     timers: z.array(cookingTimerSchema),
     usedTimerNumbers: z.array(z.number().int().positive()).default([]),
@@ -175,15 +175,18 @@ export function isSupportedServings(value: unknown): value is SupportedServings 
 }
 
 export function createCookingSession(
-  input: { uid: string; recipe: Recipe; selectedServings?: SupportedServings },
+  input: { uid: string; recipe: Recipe; selectedServings?: SupportedServings | null },
   now = Date.now(),
   sessionId?: string,
 ): CookingSession {
   const timestamp = safeNow(now);
   const uid = input.uid.trim();
   if (!uid || input.recipe.userId !== uid) throw new TypeError("recipe must belong to the cooking user");
+  if (input.recipe.steps.length === 0) throw new TypeError("recipe has no cooking steps");
   const selectedServings = input.selectedServings ?? input.recipe.servings;
-  if (!isSupportedServings(selectedServings)) throw new TypeError("unsupported serving count");
+  if (selectedServings !== null && !isSupportedServings(selectedServings)) {
+    throw new TypeError("unsupported serving count");
+  }
 
   const session: CookingSession = {
     schemaVersion: COOKING_SESSION_SCHEMA_VERSION,

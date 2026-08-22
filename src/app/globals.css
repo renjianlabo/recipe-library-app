@@ -978,6 +978,8 @@ body {
 .detail-actions a { display: flex; height: 48px; align-items: center; justify-content: center; gap: 5px; border-radius: 14px; font-size: 12px; font-weight: 800; }
 .detail-actions a:first-child { border: 1px solid #e5e3dc; background: #fff; color: #686960; }
 .detail-actions a:last-child { background: var(--accent); color: #fff; box-shadow: 0 6px 13px rgb(190 82 47 / 16%); }
+.detail-actions--single { grid-template-columns: 1fr; }
+.detail-actions--single a:last-child { border: 1px solid #e5e3dc; background: #fff; color: #686960; box-shadow: none; }
 
 .settings-page {
   position: absolute;
