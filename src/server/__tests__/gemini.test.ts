@@ -7,7 +7,10 @@ import {
   resolveAiTimeoutMs,
   type GeminiTransport,
 } from "../gemini";
+import { recipeDraftSchema } from "../ai-schema";
 import { modelOutput } from "./fixtures";
+
+const textSource = { type: "text" as const, url: null };
 
 function transportWith(response: Parameters<GeminiTransport["create"]> extends never ? never : unknown): GeminiTransport {
   return {
@@ -38,6 +41,7 @@ describe("Gemini Interactions recipe generator", () => {
     const result = await generator.generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "recipe" }],
+      source: textSource,
     });
 
     expect(result.draft.title).toBe("親子丼");
@@ -46,6 +50,123 @@ describe("Gemini Interactions recipe generator", () => {
       response_format: expect.objectContaining({ mime_type: "application/json" }),
       store: false,
     }), expect.any(AbortSignal));
+  });
+
+  it("normalizes unit-bearing and qualitative amounts without trusting AI numericAmount", async () => {
+    const rawOutput = modelOutput();
+    const rawAmounts = [
+      "150g", "150 g", "2個", "1/2個", "0.5個",
+      "大さじ2", "大さじ 2", "小さじ1", "60ml", "60 ml",
+      "少々", "適量", "適宜", "ひとつまみ", "1袋（200g）", "1本程度", "お好みで",
+    ];
+    const items = rawAmounts.map((amountText, index) => ({
+      id: `item-${index + 1}`,
+      name: `項目${index + 1}`,
+      amountText,
+      numericAmount: index === 0 ? 150 : 999,
+      unit: "",
+      note: "",
+    }));
+    rawOutput.draft.ingredients = items.slice(0, 5);
+    rawOutput.draft.seasonings = items.slice(5);
+    rawOutput.draft.steps[0].ingredientRefs = [];
+    const generator = createGeminiRecipeGenerator({
+      transport: transportWith({
+        status: "completed",
+        output_text: JSON.stringify(rawOutput),
+        steps: [],
+      }),
+      timeoutMs: 100,
+    });
+
+    const result = await generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "fixture only" }],
+      source: textSource,
+    });
+    const normalized = [...result.draft.ingredients, ...(result.draft.seasonings ?? [])]
+      .map(({ amountText, numericAmount, unit }) => ({ amountText, numericAmount, unit }));
+
+    expect(normalized).toEqual([
+      { amountText: "150", numericAmount: 150, unit: "g" },
+      { amountText: "150", numericAmount: 150, unit: "g" },
+      { amountText: "2", numericAmount: 2, unit: "個" },
+      { amountText: "0.5", numericAmount: 0.5, unit: "個" },
+      { amountText: "0.5", numericAmount: 0.5, unit: "個" },
+      { amountText: "2", numericAmount: 2, unit: "大さじ" },
+      { amountText: "2", numericAmount: 2, unit: "大さじ" },
+      { amountText: "1", numericAmount: 1, unit: "小さじ" },
+      { amountText: "60", numericAmount: 60, unit: "ml" },
+      { amountText: "60", numericAmount: 60, unit: "ml" },
+      { amountText: "少々", numericAmount: null, unit: "" },
+      { amountText: "適量", numericAmount: null, unit: "" },
+      { amountText: "適宜", numericAmount: null, unit: "" },
+      { amountText: "ひとつまみ", numericAmount: null, unit: "" },
+      { amountText: "1袋(200g)", numericAmount: null, unit: "" },
+      { amountText: "1本程度", numericAmount: null, unit: "" },
+      { amountText: "お好みで", numericAmount: null, unit: "" },
+    ]);
+    expect(recipeDraftSchema.safeParse(result.draft).success).toBe(true);
+  });
+
+  it("derives internal IDs, order, timer IDs, tags, and source on the server", async () => {
+    const rawOutput = modelOutput();
+    rawOutput.draft.ingredients = [{
+      id: "材料 1",
+      name: "豚肉",
+      amountText: "150g",
+      numericAmount: 999,
+      unit: "g",
+      note: "",
+    }];
+    rawOutput.draft.seasonings = [{
+      id: "調味料 1",
+      name: "しょうゆ",
+      amountText: "大さじ2",
+      numericAmount: 999,
+      unit: "大さじ",
+      note: "",
+    }];
+    rawOutput.draft.steps = [{
+      id: "工程 99",
+      order: 99,
+      text: "炒める。",
+      ingredientRefs: [
+        { ingredientId: "材料 1", usage: "all" },
+        { ingredientId: "調味料 1", usage: "all" },
+      ],
+      timers: [{ id: "任意のID", label: "加熱", seconds: 30 }],
+    }];
+    rawOutput.draft.tags = ["AIが生成したタグ"];
+    rawOutput.draft.source = { type: "website", url: "https://wrong.example/" };
+    const generator = createGeminiRecipeGenerator({
+      transport: transportWith({
+        status: "completed",
+        output_text: JSON.stringify(rawOutput),
+        steps: [],
+      }),
+      timeoutMs: 100,
+    });
+
+    const result = await generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "fixture only" }],
+      source: textSource,
+    });
+
+    expect(result.draft.ingredients[0]).toMatchObject({
+      id: "ingredient-1", amountText: "150", numericAmount: 150, unit: "g",
+    });
+    expect(result.draft.seasonings?.[0]).toMatchObject({
+      id: "seasoning-1", amountText: "2", numericAmount: 2, unit: "大さじ",
+    });
+    expect(result.draft.steps[0]).toMatchObject({ id: "step-1", order: 1 });
+    expect(result.draft.steps[0].ingredientRefs.map((reference) => reference.ingredientId))
+      .toEqual(["ingredient-1", "seasoning-1"]);
+    expect(result.draft.steps[0].timers[0].id).toBe("timer-1-1");
+    expect(result.draft.tags).toEqual([]);
+    expect(result.draft.source).toEqual(textSource);
+    expect(recipeDraftSchema.safeParse(result.draft).success).toBe(true);
   });
 
   it("passes a YouTube video URI through to the Interactions request", async () => {
@@ -60,7 +181,7 @@ describe("Gemini Interactions recipe generator", () => {
       { type: "text" as const, text: "YouTube metadata" },
     ];
 
-    await generator.generate({ systemInstruction: "system", input });
+    await generator.generate({ systemInstruction: "system", input, source: textSource });
 
     expect(transport.create).toHaveBeenCalledWith(
       expect.objectContaining({ input }),
@@ -77,6 +198,7 @@ describe("Gemini Interactions recipe generator", () => {
     await expect(generator.generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "secret-user-input" }],
+      source: textSource,
     }))
       .rejects.toMatchObject({ code: "AI_INVALID_RESPONSE", status: 502 });
 
@@ -120,6 +242,7 @@ describe("Gemini Interactions recipe generator", () => {
     await expect(generator.generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "secret-user-input" }],
+      source: textSource,
     })).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE", status: 502 });
 
     expect(consoleError).toHaveBeenCalledTimes(1);
@@ -167,6 +290,7 @@ describe("Gemini Interactions recipe generator", () => {
     await expect(generator.generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "x" }],
+      source: textSource,
     })).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE", status: 502 });
 
     expect(consoleError).toHaveBeenCalledWith("[recipe-library-ai-invalid-response]", {
@@ -191,18 +315,21 @@ describe("Gemini Interactions recipe generator", () => {
     await expect(createGeminiRecipeGenerator({ transport: never, timeoutMs: 5 }).generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "x" }],
+      source: textSource,
     })).rejects.toMatchObject({ code: "AI_TIMEOUT", status: 504 });
 
     const quota: GeminiTransport = { create: async () => { throw { status: 429, message: "quota" }; } };
     await expect(createGeminiRecipeGenerator({ transport: quota }).generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "x" }],
+      source: textSource,
     })).rejects.toMatchObject({ code: "AI_LIMIT_REACHED", status: 429 });
 
     const network: GeminiTransport = { create: async () => { throw new Error("ECONNRESET"); } };
     await expect(createGeminiRecipeGenerator({ transport: network }).generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "x" }],
+      source: textSource,
     })).rejects.toMatchObject({ code: "AI_UNAVAILABLE", status: 503 });
   });
 
@@ -228,6 +355,7 @@ describe("Gemini Interactions recipe generator", () => {
     await expect(generator.generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "user recipe input" }],
+      source: textSource,
     })).rejects.toMatchObject({
       code: "AI_LIMIT_REACHED",
       message: "AIの利用上限に達しました。しばらく待つか、手動で編集を続けてください。",
@@ -264,6 +392,7 @@ describe("Gemini Interactions recipe generator", () => {
     await expect(successful.generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "url" }],
+      source: { type: "website", url: "https://recipe.example/page" },
       expectedUrlContext: "https://recipe.example/page",
     })).resolves.toBeTruthy();
 
@@ -275,6 +404,7 @@ describe("Gemini Interactions recipe generator", () => {
     await expect(failed.generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "url" }],
+      source: { type: "website", url: "https://recipe.example/page" },
       expectedUrlContext: "https://recipe.example/page",
     })).rejects.toMatchObject({ code: "URL_CONTEXT_FAILED" });
 
@@ -286,6 +416,7 @@ describe("Gemini Interactions recipe generator", () => {
     await expect(unsafe.generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "url" }],
+      source: { type: "website", url: "https://recipe.example/page" },
       expectedUrlContext: "https://recipe.example/page",
     })).rejects.toMatchObject({ code: "URL_UNSAFE" });
   });

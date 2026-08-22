@@ -3,8 +3,11 @@ import { GoogleGenAI, type Interactions } from "@google/genai";
 import { ApiError } from "./api-error";
 import {
   aiModelOutputSchema,
+  aiModelWireOutputSchema,
   geminiRecipeDraftJsonSchema,
+  normalizeAiWireOutput,
   type AiModelOutput,
+  type RecipeDraft,
 } from "./ai-schema";
 
 export type InteractionContent =
@@ -36,6 +39,7 @@ export type GeminiTransport = {
 export type GenerateRecipeRequest = {
   input: InteractionContent[];
   systemInstruction: string;
+  source: RecipeDraft["source"];
   expectedUrlContext?: string;
 };
 
@@ -340,7 +344,19 @@ export function createGeminiRecipeGenerator(options: {
           true,
         );
       }
-      const parsed = aiModelOutputSchema.safeParse(json);
+      const wireParsed = aiModelWireOutputSchema.safeParse(json);
+      if (!wireParsed.success) {
+        logInvalidSchemaResponse(response, wireParsed.error.issues);
+        throw new ApiError(
+          "AI_INVALID_RESPONSE",
+          "AIの結果を安全なレシピ形式として確認できませんでした。入力内容は保持されています。",
+          502,
+          true,
+        );
+      }
+      const parsed = aiModelOutputSchema.safeParse(
+        normalizeAiWireOutput(wireParsed.data, request.source),
+      );
       if (!parsed.success) {
         logInvalidSchemaResponse(response, parsed.error.issues);
         throw new ApiError(

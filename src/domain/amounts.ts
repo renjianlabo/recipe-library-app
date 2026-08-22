@@ -26,6 +26,10 @@ const COMMON_FRACTIONS: ReadonlyArray<readonly [number, string]> = [
 ];
 const PREFIX_DISPLAY_UNITS = new Set(["大さじ", "小さじ"]);
 const MEASURING_UNITS = new Set(["大さじ", "小さじ", "カップ"]);
+const SAFE_EMBEDDED_AMOUNT_UNITS = new Set([
+  "g", "kg", "mg", "ml", "L", "l", "cc", "個", "本", "枚", "玉", "束",
+  "袋", "缶", "パック", "大さじ", "小さじ", "カップ", "合", "片", "丁", "cm",
+]);
 const CONTINUOUS_UNITS = new Set([
   "g",
   "kg",
@@ -211,6 +215,45 @@ export function normalizeIngredientAmount(
       amountText: formatAmount(parsedNumeric),
       numericAmount: parsedNumeric,
       unit: cleanUnit,
+    };
+  }
+
+  return { amountText: text, numericAmount: null, unit: cleanUnit };
+}
+
+/**
+ * Normalizes evidence extracted by AI without trusting its derived numeric value.
+ * Only an exact numeric expression, optionally paired with a known unit, is
+ * converted. Ambiguous text is preserved and deliberately remains unscaled.
+ */
+export function normalizeAiIngredientAmount(
+  amountText: unknown,
+  unit: unknown = "",
+): IngredientAmount & { unit: string } {
+  const text = cleanAmountText(amountText);
+  const cleanUnit = cleanAmountText(unit);
+  if (isQualitativeAmount(text)) {
+    return { amountText: text, numericAmount: null, unit: cleanUnit };
+  }
+  if (isQualitativeAmount(cleanUnit)) {
+    return { amountText: cleanUnit, numericAmount: null, unit: "" };
+  }
+
+  const direct = parseAmountText(text);
+  if (direct !== null) {
+    return {
+      amountText: formatDecimalAmount(direct),
+      numericAmount: direct,
+      unit: cleanUnit,
+    };
+  }
+
+  const combined = parseAmountWithUnit(text, cleanUnit);
+  if (combined && SAFE_EMBEDDED_AMOUNT_UNITS.has(combined.unit)) {
+    return {
+      amountText: formatDecimalAmount(combined.numericAmount),
+      numericAmount: combined.numericAmount,
+      unit: combined.unit,
     };
   }
 

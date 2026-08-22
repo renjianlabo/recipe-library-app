@@ -9,6 +9,7 @@ import {
   formatScaledIngredientAmount,
   isAllowedServing,
   normalizeIngredientAmount,
+  normalizeAiIngredientAmount,
   parseAmountWithUnit,
   parseAmountText,
   scaleAmount,
@@ -55,6 +56,35 @@ describe("amount helpers", () => {
       numericAmount: null,
       unit: "",
     });
+  });
+
+  it("deterministically normalizes AI amounts with known embedded units", () => {
+    const cases = [
+      ["150g", "150", 150, "g"],
+      ["150 g", "150", 150, "g"],
+      ["2個", "2", 2, "個"],
+      ["1/2個", "0.5", 0.5, "個"],
+      ["0.5個", "0.5", 0.5, "個"],
+      ["大さじ2", "2", 2, "大さじ"],
+      ["大さじ 2", "2", 2, "大さじ"],
+      ["小さじ1", "1", 1, "小さじ"],
+      ["60ml", "60", 60, "ml"],
+      ["60 ml", "60", 60, "ml"],
+    ] as const;
+
+    for (const [input, amountText, numericAmount, unit] of cases) {
+      expect(normalizeAiIngredientAmount(input)).toEqual({ amountText, numericAmount, unit });
+    }
+  });
+
+  it("keeps ambiguous AI amounts and never invents a numeric value", () => {
+    for (const input of ["少々", "適量", "適宜", "ひとつまみ", "1袋（200g）", "1本程度", "お好みで"]) {
+      expect(normalizeAiIngredientAmount(input)).toEqual({
+        amountText: input.normalize("NFKC"),
+        numericAmount: null,
+        unit: "",
+      });
+    }
   });
 
   it("scales numeric values to every allowed serving count and leaves qualitative text unchanged", () => {

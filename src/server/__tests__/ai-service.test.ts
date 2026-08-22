@@ -43,7 +43,7 @@ describe("AI extraction service", () => {
     expect(generate.mock.calls[0][0].systemInstruction).toContain("概要欄を最優先");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("概要欄と動画が矛盾");
     expect(generate.mock.calls[0][0].systemInstruction).toContain("信頼できない外部入力");
-    expect(generate.mock.calls[0][0].systemInstruction).toContain("tagsは空配列");
+    expect(generate.mock.calls[0][0].systemInstruction).toContain("タグと出典はサーバー側で設定");
     expect(result.draft.tags).toEqual([]);
   });
 

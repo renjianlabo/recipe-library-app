@@ -62,6 +62,29 @@ describe("Gemini Structured Output schema", () => {
     });
   });
 
+  it("keeps app-derived fields out of the Gemini request schema", () => {
+    expect(schemaValueAt(
+      "properties", "draft", "properties", "ingredients", "items", "properties", "numericAmount",
+    )).toBeUndefined();
+    expect(schemaValueAt(
+      "properties", "draft", "properties", "seasonings", "items", "properties", "numericAmount",
+    )).toBeUndefined();
+    expect(schemaValueAt(
+      "properties", "draft", "properties", "ingredients", "items", "properties", "nutritionFoodId",
+    )).toBeUndefined();
+    expect(schemaValueAt("properties", "draft", "properties", "source")).toBeUndefined();
+    expect(schemaValueAt("properties", "draft", "properties", "tags")).toBeUndefined();
+    expect(schemaValueAt(
+      "properties", "draft", "properties", "steps", "items", "properties", "id",
+    )).toBeUndefined();
+    expect(schemaValueAt(
+      "properties", "draft", "properties", "steps", "items", "properties", "order",
+    )).toBeUndefined();
+    expect(schemaValueAt(
+      "properties", "draft", "properties", "steps", "items", "properties", "timers", "items", "properties", "id",
+    )).toBeUndefined();
+  });
+
   it("continues to enforce strict constraints with Zod after generation", () => {
     const validOutput = modelOutput();
     expect(aiModelOutputSchema.safeParse(validOutput).success).toBe(true);

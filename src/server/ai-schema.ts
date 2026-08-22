@@ -1,7 +1,12 @@
 import { z } from "zod";
 
+import { normalizeAiIngredientAmount } from "../domain/amounts";
 import {
+  ingredientDraftSchema,
   recipeDraftSchema,
+  recipeStepDraftSchema,
+  recipeTimerDraftSchema,
+  stepIngredientRefSchema,
   type RecipeDraft,
 } from "../domain/recipe";
 
@@ -13,6 +18,181 @@ export const aiModelOutputSchema = z.strictObject({
   warnings: z.array(z.string().trim().min(1).max(500)).max(50),
   detectedServings: z.number().finite().positive().max(1_000).nullable(),
 });
+
+const aiIngredientEvidenceShape = {
+  // A wire reference handle, not an application ID. The server remaps it.
+  id: z.string().trim().min(1).max(128),
+  name: ingredientDraftSchema.shape.name,
+  amountText: ingredientDraftSchema.shape.amountText,
+  unit: ingredientDraftSchema.shape.unit,
+  note: ingredientDraftSchema.shape.note,
+};
+const aiIngredientRequestSchema = z.strictObject(aiIngredientEvidenceShape);
+const aiIngredientWireSchema = z.strictObject({
+  ...aiIngredientEvidenceShape,
+  // Accepted only for compatibility with responses produced by the previous
+  // transport schema. This value is ignored during server normalization.
+  numericAmount: z.unknown().optional(),
+  nutritionFoodId: z.unknown().optional(),
+});
+
+const aiTimerEvidenceShape = {
+  label: recipeTimerDraftSchema.shape.label,
+  seconds: recipeTimerDraftSchema.shape.seconds,
+};
+const aiTimerRequestSchema = z.strictObject(aiTimerEvidenceShape);
+const aiTimerWireSchema = z.strictObject({
+  ...aiTimerEvidenceShape,
+  id: z.unknown().optional(),
+});
+
+const aiIngredientReferenceSchema = z.strictObject({
+  ingredientId: z.string().trim().min(1).max(128),
+  usage: stepIngredientRefSchema.shape.usage,
+  customAmountText: stepIngredientRefSchema.shape.customAmountText,
+});
+
+const aiStepEvidenceShape = {
+  text: recipeStepDraftSchema.shape.text,
+  ingredientRefs: z.array(aiIngredientReferenceSchema).max(100),
+  timers: z.array(aiTimerRequestSchema).max(20),
+};
+const aiStepRequestSchema = z.strictObject(aiStepEvidenceShape);
+const aiStepWireSchema = z.strictObject({
+  ...aiStepEvidenceShape,
+  id: z.unknown().optional(),
+  order: z.unknown().optional(),
+  timers: z.array(aiTimerWireSchema).max(20),
+});
+
+const aiRecipeDraftEvidenceShape = {
+  title: recipeDraftSchema.shape.title,
+  imageDataUrl: recipeDraftSchema.shape.imageDataUrl,
+  category: recipeDraftSchema.shape.category,
+  servings: recipeDraftSchema.shape.servings,
+  ingredients: z.array(aiIngredientRequestSchema).max(100),
+  seasonings: z.array(aiIngredientRequestSchema).max(100).optional(),
+  steps: z.array(aiStepRequestSchema).max(100),
+  tips: recipeDraftSchema.shape.tips,
+  memo: recipeDraftSchema.shape.memo,
+};
+
+/** Schema sent to Gemini: evidence fields only, without app-derived values. */
+const aiGeminiModelOutputSchema = z.strictObject({
+  draft: z.strictObject(aiRecipeDraftEvidenceShape),
+  warnings: aiModelOutputSchema.shape.warnings,
+  detectedServings: aiModelOutputSchema.shape.detectedServings,
+});
+
+/**
+ * Receive boundary accepting both the current evidence-only response and the
+ * previous response shape. Derived legacy values are accepted but not trusted.
+ */
+export const aiModelWireOutputSchema = z.strictObject({
+  draft: z.strictObject({
+    ...aiRecipeDraftEvidenceShape,
+    ingredients: z.array(aiIngredientWireSchema).max(100),
+    seasonings: z.array(aiIngredientWireSchema).max(100).optional(),
+    steps: z.array(aiStepWireSchema).max(100),
+    tags: z.unknown().optional(),
+    source: z.unknown().optional(),
+  }),
+  warnings: aiModelOutputSchema.shape.warnings,
+  detectedServings: aiModelOutputSchema.shape.detectedServings,
+});
+
+type AiModelWireOutput = z.infer<typeof aiModelWireOutputSchema>;
+
+const VALID_INTERNAL_ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/;
+
+function uniqueInternalId(requested: string, fallback: string, used: Set<string>): string {
+  let candidate = requested.trim();
+  if (!candidate || candidate.length > 128 || !VALID_INTERNAL_ID.test(candidate)) {
+    candidate = fallback;
+  }
+  let next = candidate;
+  let suffix = 2;
+  while (used.has(next)) {
+    next = `${fallback}-${suffix}`;
+    suffix += 1;
+  }
+  used.add(next);
+  return next;
+}
+
+/** Converts AI evidence into the internal draft candidate without inventing recipe facts. */
+export function normalizeAiWireOutput(
+  output: AiModelWireOutput,
+  source: RecipeDraft["source"],
+): unknown {
+  const rawItems = [
+    ...output.draft.ingredients.map((item, index) => ({ item, index, prefix: "ingredient" as const })),
+    ...(output.draft.seasonings ?? []).map((item, index) => ({ item, index, prefix: "seasoning" as const })),
+  ];
+  const idCounts = new Map<string, number>();
+  rawItems.forEach(({ item }) => idCounts.set(item.id, (idCounts.get(item.id) ?? 0) + 1));
+
+  const usedIds = new Set<string>();
+  const duplicateIds = new Map<string, string>();
+  rawItems.forEach(({ item }, combinedIndex) => {
+    if ((idCounts.get(item.id) ?? 0) > 1 && !duplicateIds.has(item.id)) {
+      duplicateIds.set(item.id, `duplicate-item-${combinedIndex + 1}-ambiguous`);
+    }
+  });
+  const ingredientIdMap = new Map<string, string>();
+  const normalizeItem = ({
+    item,
+    index,
+    prefix,
+  }: (typeof rawItems)[number]) => {
+    const duplicateId = duplicateIds.get(item.id);
+    const id = duplicateId ?? uniqueInternalId(item.id, `${prefix}-${index + 1}`, usedIds);
+    if (duplicateId && !usedIds.has(duplicateId)) usedIds.add(duplicateId);
+    if (!ingredientIdMap.has(item.id)) ingredientIdMap.set(item.id, id);
+    const amount = normalizeAiIngredientAmount(item.amountText, item.unit);
+    return {
+      id,
+      name: item.name,
+      ...amount,
+      note: item.note,
+    };
+  };
+
+  const ingredients = rawItems
+    .filter((entry) => entry.prefix === "ingredient")
+    .map(normalizeItem);
+  const seasonings = rawItems
+    .filter((entry) => entry.prefix === "seasoning")
+    .map(normalizeItem);
+  const steps = output.draft.steps.map((step, stepIndex) => ({
+    ...step,
+    id: `step-${stepIndex + 1}`,
+    order: stepIndex + 1,
+    ingredientRefs: step.ingredientRefs.map((reference) => ({
+      ingredientId: ingredientIdMap.get(reference.ingredientId) ?? reference.ingredientId,
+      usage: reference.usage,
+      ...(reference.usage === "custom" && reference.customAmountText?.trim()
+        ? { customAmountText: reference.customAmountText }
+        : {}),
+    })),
+    timers: step.timers.map((timer, timerIndex) => ({
+      ...timer,
+      id: `timer-${stepIndex + 1}-${timerIndex + 1}`,
+    })),
+  }));
+
+  return {
+    ...output,
+    draft: {
+      ...output.draft,
+      ingredients,
+      seasonings,
+      steps,
+      tags: [],
+      source,
+    },
+  };
+}
 
 const imageMimeTypeSchema = z.enum([
   "image/png", "image/jpeg", "image/webp", "image/heic", "image/heif",
@@ -193,5 +373,8 @@ function toGeminiCompatibleSchema(value: unknown): unknown {
  * existing Zod schema remains the source of truth for received model output.
  */
 export const geminiRecipeDraftJsonSchema = toGeminiCompatibleSchema(
-  recipeDraftJsonSchema,
+  z.toJSONSchema(aiGeminiModelOutputSchema, {
+    target: "draft-2020-12",
+    unrepresentable: "any",
+  }),
 ) as Record<string, unknown>;

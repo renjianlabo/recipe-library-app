@@ -33,7 +33,7 @@ ingredientsとseasoningsのIDは互いに重複させず、工程のingredientRe
 材料名・調味料名の表記は入力元を尊重し、同義語へ勝手に置き換えないでください。
 確認できなかった情報、曖昧な情報、入力元内で矛盾する情報は推測せず、warningsへユーザーが確認できる短い文章で記録してください。
 warningsの内容をレシピ本文、tips、memoへ混ぜないでください。
-タグは生成せず、tagsは空配列にしてください。
+タグは生成しないでください。タグと出典はサーバー側で設定します。
 返答は指定されたJSON Schemaだけに従ってください。`;
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -150,21 +150,23 @@ export function createAiRecipeService(options: {
     async extract(request) {
       if (request.type === "text") {
         const output = await generator.generate({
-          systemInstruction: `${BASE_SYSTEM_INSTRUCTION}\n入力はコピーされた文章です。出典URLを作らず、source.typeはtext、source.urlはnullにしてください。`,
+          systemInstruction: `${BASE_SYSTEM_INSTRUCTION}\n入力はコピーされた文章です。出典URLを作らないでください。`,
           input: [{ type: "text", text: `次の文章からレシピを抽出してください。\n\n${request.text}` }],
+          source: { type: "text", url: null },
         });
         return finalizeOutput(output, { type: "text", url: null });
       }
 
       if (request.type === "screenshot") {
         const output = await generator.generate({
-          systemInstruction: `${BASE_SYSTEM_INSTRUCTION}\n入力はスクリーンショットです。複数画像を1つのレシピとして統合し、読めない箇所を推測しないでください。source.typeはscreenshot、source.urlはnullにしてください。`,
+          systemInstruction: `${BASE_SYSTEM_INSTRUCTION}\n入力はスクリーンショットです。複数画像を1つのレシピとして統合し、読めない箇所を推測しないでください。`,
           input: [
             { type: "text", text: request.text
               ? `画像と次の補足だけからレシピを抽出してください。\n補足: ${request.text}`
               : "画像だけからレシピを抽出してください。" },
             ...normalizedImages(request.images),
           ],
+          source: { type: "screenshot", url: null },
         });
         return finalizeOutput(output, { type: "screenshot", url: null });
       }
@@ -178,7 +180,7 @@ YouTube Data APIの概要欄と公開動画の映像・音声を統合してく�
 材料・調味料・分量・人数は概要欄を最優先し、概要欄に明記された値を動画だけを理由に置き換えないでください。
 工程・火加減・加熱時間・料理のコツは、概要欄にない場合だけ動画で実際に確認できた情報から補ってください。
 概要欄と動画が矛盾する場合は値を勝手に確定せず、両方の内容をwarningsへ記録してください。
-一般的な料理知識から推測せず、栄養成分やタグを生成しないでください。source.typeはyoutubeにしてください。`;
+一般的な料理知識から推測せず、栄養成分やタグを生成しないでください。`;
 
         try {
           const output = await generator.generate({
@@ -187,6 +189,7 @@ YouTube Data APIの概要欄と公開動画の映像・音声を統合してく�
               { type: "video", uri: video.url },
               { type: "text", text: metadataEvidence },
             ],
+            source: { type: "youtube", url: video.url },
           });
           return finalizeOutput(output, { type: "youtube", url: video.url }, snippet.warnings);
         } catch (videoError) {
@@ -203,8 +206,9 @@ YouTube Data APIの概要欄と公開動画の映像・音声を統合してく�
               systemInstruction: `${BASE_SYSTEM_INSTRUCTION}
 YouTube動画を利用できないため、YouTube Data APIで取得したタイトルと概要欄だけから抽出してください。
 概要欄に明記されていない材料、分量、人数、工程、火加減、時間、コツを一般知識から補ってはいけません。
-概要欄だけでは確定できない内容はwarningsへ記録してください。source.typeはyoutubeにしてください。`,
+概要欄だけでは確定できない内容はwarningsへ記録してください。`,
               input: [{ type: "text", text: metadataEvidence }],
+              source: { type: "youtube", url: video.url },
             });
           } catch (fallbackError) {
             if (isAiError(
@@ -231,11 +235,12 @@ YouTube動画を利用できないため、YouTube Data APIで取得したタイ
 
       const safeUrl = await assertSafePublicUrl(request.url, { lookup: options.lookup });
       const output = await generator.generate({
-        systemInstruction: `${BASE_SYSTEM_INSTRUCTION}\nURL Contextで対象URLの本文を取得できた場合だけ抽出してください。タイトルや一般知識から推測しないでください。source.typeはwebsiteにしてください。`,
+        systemInstruction: `${BASE_SYSTEM_INSTRUCTION}\nURL Contextで対象URLの本文を取得できた場合だけ抽出してください。タイトルや一般知識から推測しないでください。`,
         input: [{
           type: "text",
           text: `URL Contextを使って次の公開ページだけを確認し、本文にレシピが存在する場合だけ抽出してください。\n${safeUrl.href}`,
         }],
+        source: { type: "website", url: safeUrl.href },
         expectedUrlContext: safeUrl.href,
       });
       return finalizeOutput(output, { type: "website", url: safeUrl.href });
