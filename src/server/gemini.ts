@@ -122,6 +122,42 @@ export function logGeminiApiFailure(error: unknown, timedOut = false): void {
   });
 }
 
+const MAX_LOGGED_SCHEMA_ISSUES = 50;
+
+function safeSchemaIssueMessage(issue: { code: string; message: string }): string {
+  if (issue.code === "unrecognized_keys") {
+    return "認識されないフィールドが含まれています";
+  }
+  return issue.message.slice(0, 300);
+}
+
+function logInvalidJsonResponse(response: InteractionResponse): void {
+  const outputTextPresent = typeof response.output_text === "string";
+  console.error("[recipe-library-ai-invalid-response]", {
+    phase: "json_parse",
+    responseStatus: response.status,
+    outputTextPresent,
+    outputTextLength: outputTextPresent ? response.output_text?.length ?? 0 : 0,
+  });
+}
+
+function logInvalidSchemaResponse(
+  response: InteractionResponse,
+  issues: ReadonlyArray<{ path: PropertyKey[]; message: string; code: string }>,
+): void {
+  console.error("[recipe-library-ai-invalid-response]", {
+    phase: "schema_validation",
+    responseStatus: response.status,
+    issueCount: issues.length,
+    issuesTruncated: issues.length > MAX_LOGGED_SCHEMA_ISSUES,
+    issues: issues.slice(0, MAX_LOGGED_SCHEMA_ISSUES).map((issue) => ({
+      path: issue.path.map(String).join("."),
+      message: safeSchemaIssueMessage(issue),
+      code: issue.code,
+    })),
+  });
+}
+
 export function resolveAiTimeoutMs(value: unknown): number {
   const configured = Number(value);
   return Number.isFinite(configured) && configured >= 1_000
@@ -296,6 +332,7 @@ export function createGeminiRecipeGenerator(options: {
       try {
         json = JSON.parse(response.output_text ?? "");
       } catch {
+        logInvalidJsonResponse(response);
         throw new ApiError(
           "AI_INVALID_RESPONSE",
           "AIの結果を安全なレシピ形式として確認できませんでした。入力内容は保持されています。",
@@ -305,6 +342,7 @@ export function createGeminiRecipeGenerator(options: {
       }
       const parsed = aiModelOutputSchema.safeParse(json);
       if (!parsed.success) {
+        logInvalidSchemaResponse(response, parsed.error.issues);
         throw new ApiError(
           "AI_INVALID_RESPONSE",
           "AIの結果を安全なレシピ形式として確認できませんでした。入力内容は保持されています。",

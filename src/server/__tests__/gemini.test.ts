@@ -68,13 +68,121 @@ describe("Gemini Interactions recipe generator", () => {
     );
   });
 
-  it("rejects malformed structured output", async () => {
+  it("classifies broken JSON without logging response or request content", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const generator = createGeminiRecipeGenerator({
-      transport: transportWith({ status: "completed", output_text: "{}", steps: [] }),
+      transport: transportWith({ status: "completed", output_text: '{ "draft": "secret-recipe', steps: [] }),
       timeoutMs: 100,
     });
-    await expect(generator.generate({ systemInstruction: "system", input: [{ type: "text", text: "x" }] }))
+    await expect(generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "secret-user-input" }],
+    }))
       .rejects.toMatchObject({ code: "AI_INVALID_RESPONSE", status: 502 });
+
+    expect(consoleError).toHaveBeenCalledWith("[recipe-library-ai-invalid-response]", {
+      phase: "json_parse",
+      responseStatus: "completed",
+      outputTextPresent: true,
+      outputTextLength: 25,
+    });
+    const serializedLog = JSON.stringify(consoleError.mock.calls);
+    expect(serializedLog).not.toContain("secret-recipe");
+    expect(serializedLog).not.toContain("secret-user-input");
+  });
+
+  it("classifies valid JSON rejected by Zod and logs only issue structure", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const invalidOutput = modelOutput();
+    invalidOutput.draft.ingredients = [
+      {
+        ...invalidOutput.draft.ingredients[0],
+        name: "secret-ingredient-name",
+      },
+      {
+        ...invalidOutput.draft.ingredients[0],
+        name: "another-secret-name",
+      },
+    ];
+    invalidOutput.draft.steps[0].ingredientRefs = [{
+      ingredientId: "missing-ingredient-id",
+      usage: "all",
+    }];
+    const generator = createGeminiRecipeGenerator({
+      transport: transportWith({
+        status: "completed",
+        output_text: JSON.stringify(invalidOutput),
+        steps: [],
+      }),
+      timeoutMs: 100,
+    });
+
+    await expect(generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "secret-user-input" }],
+    })).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE", status: 502 });
+
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[recipe-library-ai-invalid-response]",
+      expect.objectContaining({
+        phase: "schema_validation",
+        responseStatus: "completed",
+        issueCount: 2,
+        issuesTruncated: false,
+        issues: expect.arrayContaining([
+          {
+            path: "draft.ingredients.1.id",
+            message: "材料IDが重複しています",
+            code: "custom",
+          },
+          {
+            path: "draft.steps.0.ingredientRefs.0.ingredientId",
+            message: "材料・調味料一覧にない項目を工程から参照しています",
+            code: "custom",
+          },
+        ]),
+      }),
+    );
+    const serializedLog = JSON.stringify(consoleError.mock.calls);
+    expect(serializedLog).not.toContain("secret-ingredient-name");
+    expect(serializedLog).not.toContain("another-secret-name");
+    expect(serializedLog).not.toContain("missing-ingredient-id");
+    expect(serializedLog).not.toContain("secret-user-input");
+  });
+
+  it("redacts model-generated unknown field names from schema diagnostics", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const invalidOutput = modelOutput();
+    (invalidOutput.draft as unknown as Record<string, unknown>)["secret-user-field"] = "secret-user-value";
+    const generator = createGeminiRecipeGenerator({
+      transport: transportWith({
+        status: "completed",
+        output_text: JSON.stringify(invalidOutput),
+        steps: [],
+      }),
+      timeoutMs: 100,
+    });
+
+    await expect(generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "x" }],
+    })).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE", status: 502 });
+
+    expect(consoleError).toHaveBeenCalledWith("[recipe-library-ai-invalid-response]", {
+      phase: "schema_validation",
+      responseStatus: "completed",
+      issueCount: 1,
+      issuesTruncated: false,
+      issues: [{
+        path: "draft",
+        message: "認識されないフィールドが含まれています",
+        code: "unrecognized_keys",
+      }],
+    });
+    const serializedLog = JSON.stringify(consoleError.mock.calls);
+    expect(serializedLog).not.toContain("secret-user-field");
+    expect(serializedLog).not.toContain("secret-user-value");
   });
 
   it("maps timeout, quota and communication failures to Japanese API errors", async () => {
