@@ -47,7 +47,7 @@ describe("AI extraction service", () => {
     expect(result.draft.tags).toEqual([]);
   });
 
-  it("does not call Gemini when YouTube metadata retrieval fails", async () => {
+  it("does not call Gemini when YouTube metadata retrieval fails permanently", async () => {
     const generate = vi.fn<RecipeGenerator["generate"]>(async () => modelOutput());
     const service = createAiRecipeService({
       generator: { generate },
@@ -58,6 +58,52 @@ describe("AI extraction service", () => {
     await expect(service.extract({ type: "youtube", url: "https://youtu.be/dQw4w9WgXcQ" }))
       .rejects.toMatchObject({ code: "YOUTUBE_FETCH_FAILED" });
     expect(generate).not.toHaveBeenCalled();
+  });
+
+  it("continues with video-only analysis when YouTube metadata retrieval fails temporarily", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const generate = vi.fn<RecipeGenerator["generate"]>(async () => modelOutput());
+    const service = createAiRecipeService({
+      generator: { generate },
+      youtubeSnippetFetcher: async () => {
+        throw new ApiError("YOUTUBE_FETCH_TEMPORARY", "temporary", 502, true);
+      },
+    });
+
+    const result = await service.extract({
+      type: "youtube",
+      url: "https://youtu.be/dQw4w9WgXcQ",
+    });
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(generate.mock.calls[0][0].input[0]).toEqual({
+      type: "video",
+      uri: "https://youtu.be/dQw4w9WgXcQ",
+    });
+    expect((generate.mock.calls[0][0].input[1] as { text: string }).text)
+      .toContain("メタデータは一時的に取得できませんでした");
+    expect(result.warnings).toContain(
+      "YouTubeの概要欄を取得できなかったため、動画から確認できた内容のみで作成しています。",
+    );
+  });
+
+  it("returns a YouTube analysis error when metadata and video analysis both fail", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const generate = vi.fn<RecipeGenerator["generate"]>(async () => {
+      throw new ApiError("AI_UNAVAILABLE", "temporary", 503, true);
+    });
+    const service = createAiRecipeService({
+      generator: { generate },
+      youtubeSnippetFetcher: async () => {
+        throw new ApiError("YOUTUBE_FETCH_TEMPORARY", "temporary", 502, true);
+      },
+    });
+
+    await expect(service.extract({
+      type: "youtube",
+      url: "https://youtu.be/dQw4w9WgXcQ",
+    })).rejects.toMatchObject({ code: "YOUTUBE_VIDEO_ANALYSIS_FAILED" });
+    expect(generate).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to sufficient description-only extraction when video analysis fails", async () => {
@@ -84,6 +130,7 @@ describe("AI extraction service", () => {
     expect(generate.mock.calls[1][0].input).toHaveLength(1);
     expect(generate.mock.calls[1][0].input[0]).toMatchObject({ type: "text" });
     expect(generate.mock.calls[1][0].systemInstruction).toContain("タイトルと概要欄だけ");
+    expect(generate.mock.calls[1][0].retryTransient).toBe(false);
     expect(result.warnings).toContain(
       "動画内容を解析できなかったため、概要欄の情報のみから作成しています。",
     );
@@ -91,6 +138,82 @@ describe("AI extraction service", () => {
       type: "youtube",
       url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     });
+  });
+
+  it("accepts description-only fallback with named items and no steps", async () => {
+    const generate = vi.fn<RecipeGenerator["generate"]>();
+    generate
+      .mockRejectedValueOnce(new ApiError("AI_UNAVAILABLE", "failed", 503, true))
+      .mockResolvedValueOnce(modelOutput({
+        draft: recipeDraft({
+          ingredients: [],
+          seasonings: [{
+            id: "seasoning-1",
+            name: "醤油",
+            amountText: "大さじ1",
+            numericAmount: 1,
+            unit: "大さじ",
+            note: "",
+          }],
+          steps: [],
+        }),
+      }));
+    const service = createAiRecipeService({
+      generator: { generate },
+      youtubeSnippetFetcher: async () => ({
+        title: "よだれ鶏風だれ",
+        description: "醤油 大さじ1\n酢 大さじ1",
+        channelTitle: "料理チャンネル",
+        warnings: [],
+      }),
+    });
+
+    const result = await service.extract({
+      type: "youtube",
+      url: "https://youtu.be/dQw4w9WgXcQ",
+    });
+
+    expect(result.draft.steps).toEqual([]);
+    expect(result.draft.ingredients).toEqual([]);
+    expect(result.draft.seasonings).toHaveLength(1);
+    expect(generate).toHaveBeenCalledTimes(2);
+  });
+
+  it("accepts description-only fallback with steps and no named items", async () => {
+    const generate = vi.fn<RecipeGenerator["generate"]>();
+    generate
+      .mockRejectedValueOnce(new ApiError("AI_UNAVAILABLE", "failed", 503, true))
+      .mockResolvedValueOnce(modelOutput({
+        draft: recipeDraft({
+          ingredients: [],
+          seasonings: [],
+          steps: [{
+            id: "step-1",
+            order: 1,
+            text: "弱火で加熱する。",
+            ingredientRefs: [],
+            timers: [],
+          }],
+        }),
+      }));
+    const service = createAiRecipeService({
+      generator: { generate },
+      youtubeSnippetFetcher: async () => ({
+        title: "加熱手順",
+        description: "作り方: 弱火で加熱する。",
+        channelTitle: "料理チャンネル",
+        warnings: [],
+      }),
+    });
+
+    const result = await service.extract({
+      type: "youtube",
+      url: "https://youtu.be/dQw4w9WgXcQ",
+    });
+
+    expect(result.draft.ingredients).toEqual([]);
+    expect(result.draft.steps).toHaveLength(1);
+    expect(generate).toHaveBeenCalledTimes(2);
   });
 
   it("does not fabricate a fallback when video analysis fails and the description is empty", async () => {
@@ -159,6 +282,15 @@ describe("AI extraction service", () => {
       url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     })).rejects.toMatchObject({ code: "AI_LIMIT_REACHED" });
     expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects an invalid YouTube URL before calling Gemini", async () => {
+    const generate = vi.fn<RecipeGenerator["generate"]>(async () => modelOutput());
+    const service = createAiRecipeService({ generator: { generate } });
+
+    await expect(service.extract({ type: "youtube", url: "https://youtube.com/watch?v=invalid" }))
+      .rejects.toMatchObject({ code: "YOUTUBE_INVALID_URL" });
+    expect(generate).not.toHaveBeenCalled();
   });
 
   it("rejects unsafe websites before Gemini and passes a safe URL for status verification", async () => {

@@ -71,6 +71,10 @@ export function extractYouTubeVideoId(rawUrl: string): YouTubeVideoReference {
 
 export type YouTubeSnippetFetcher = (videoId: string) => Promise<YouTubeSnippet>;
 
+export function isTransientYouTubeMetadataError(error: unknown): boolean {
+  return error instanceof ApiError && error.code === "YOUTUBE_FETCH_TEMPORARY";
+}
+
 export function createYouTubeSnippetFetcher(options: {
   apiKey?: string;
   fetchImpl?: typeof fetch;
@@ -101,7 +105,7 @@ export function createYouTubeSnippetFetcher(options: {
       response = await fetchImpl(endpoint, { signal: controller.signal });
     } catch {
       throw new ApiError(
-        "YOUTUBE_FETCH_FAILED",
+        "YOUTUBE_FETCH_TEMPORARY",
         "YouTube動画の情報を取得できませんでした。",
         502,
         true,
@@ -112,7 +116,9 @@ export function createYouTubeSnippetFetcher(options: {
 
     if (!response.ok) {
       throw new ApiError(
-        "YOUTUBE_FETCH_FAILED",
+        response.status === 408 || response.status === 429 || response.status >= 500
+          ? "YOUTUBE_FETCH_TEMPORARY"
+          : "YOUTUBE_FETCH_FAILED",
         "YouTube動画の情報を取得できませんでした。",
         502,
         true,

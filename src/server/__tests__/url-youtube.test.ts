@@ -127,4 +127,20 @@ describe("YouTube integration", () => {
         message: "YouTube動画の情報を取得できませんでした。",
       });
   });
+
+  it("classifies network and 5xx failures as temporary metadata failures", async () => {
+    const serverErrorFetch: typeof fetch = async () => new Response("temporary", { status: 503 });
+    await expect(createYouTubeSnippetFetcher({ apiKey: "test", fetchImpl: serverErrorFetch })("dQw4w9WgXcQ"))
+      .rejects.toMatchObject({ code: "YOUTUBE_FETCH_TEMPORARY" });
+
+    const networkErrorFetch: typeof fetch = async () => {
+      throw new TypeError("fixture network failure");
+    };
+    await expect(createYouTubeSnippetFetcher({ apiKey: "test", fetchImpl: networkErrorFetch })("dQw4w9WgXcQ"))
+      .rejects.toMatchObject({ code: "YOUTUBE_FETCH_TEMPORARY" });
+
+    const throttledFetch: typeof fetch = async () => new Response("temporary", { status: 429 });
+    await expect(createYouTubeSnippetFetcher({ apiKey: "test", fetchImpl: throttledFetch })("dQw4w9WgXcQ"))
+      .rejects.toMatchObject({ code: "YOUTUBE_FETCH_TEMPORARY" });
+  });
 });

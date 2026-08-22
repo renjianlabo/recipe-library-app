@@ -50,6 +50,91 @@ describe("Gemini Interactions recipe generator", () => {
       response_format: expect.objectContaining({ mime_type: "application/json" }),
       store: false,
     }), expect.any(AbortSignal));
+    expect(transport.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries one transient UNAVAILABLE failure and then succeeds", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const create = vi.fn<GeminiTransport["create"]>()
+      .mockRejectedValueOnce({ status: 503, code: "UNAVAILABLE" })
+      .mockResolvedValueOnce({
+        status: "completed",
+        output_text: JSON.stringify(modelOutput()),
+        steps: [],
+      });
+    const generator = createGeminiRecipeGenerator({
+      transport: { create },
+      timeoutMs: 100,
+      retryDelayMs: 0,
+    });
+
+    await expect(generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "fixture" }],
+      source: textSource,
+    })).resolves.toBeTruthy();
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("stops after one retry when INTERNAL persists", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const create = vi.fn<GeminiTransport["create"]>(async () => {
+      throw { status: 500, code: "INTERNAL" };
+    });
+    const generator = createGeminiRecipeGenerator({
+      transport: { create },
+      timeoutMs: 100,
+      retryDelayMs: 0,
+    });
+
+    await expect(generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "fixture" }],
+      source: textSource,
+    })).rejects.toMatchObject({ code: "AI_UNAVAILABLE" });
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry a transient transport error when retry is disabled", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const create = vi.fn<GeminiTransport["create"]>(async () => {
+      throw { status: 503, code: "UNAVAILABLE" };
+    });
+    const generator = createGeminiRecipeGenerator({
+      transport: { create },
+      timeoutMs: 100,
+      retryDelayMs: 0,
+    });
+
+    await expect(generator.generate({
+      systemInstruction: "system",
+      input: [{ type: "text", text: "fixture" }],
+      source: textSource,
+      retryTransient: false,
+    })).rejects.toMatchObject({ code: "AI_UNAVAILABLE" });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry quota or permanent configuration errors", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    for (const error of [
+      { status: 429, code: "RESOURCE_EXHAUSTED" },
+      { status: 403, code: "PERMISSION_DENIED" },
+      { status: 400, code: "INVALID_ARGUMENT" },
+    ]) {
+      const create = vi.fn<GeminiTransport["create"]>(async () => { throw error; });
+      const generator = createGeminiRecipeGenerator({
+        transport: { create },
+        timeoutMs: 100,
+        retryDelayMs: 0,
+      });
+      await expect(generator.generate({
+        systemInstruction: "system",
+        input: [{ type: "text", text: "fixture" }],
+        source: textSource,
+      })).rejects.toBeTruthy();
+      expect(create).toHaveBeenCalledTimes(1);
+    }
   });
 
   it("normalizes string numericAmount values while preserving amountText", async () => {
@@ -196,8 +281,9 @@ describe("Gemini Interactions recipe generator", () => {
 
   it("classifies broken JSON without logging response or request content", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const transport = transportWith({ status: "completed", output_text: '{ "draft": "secret-recipe', steps: [] });
     const generator = createGeminiRecipeGenerator({
-      transport: transportWith({ status: "completed", output_text: '{ "draft": "secret-recipe', steps: [] }),
+      transport,
       timeoutMs: 100,
     });
     await expect(generator.generate({
@@ -216,6 +302,7 @@ describe("Gemini Interactions recipe generator", () => {
     const serializedLog = JSON.stringify(consoleError.mock.calls);
     expect(serializedLog).not.toContain("secret-recipe");
     expect(serializedLog).not.toContain("secret-user-input");
+    expect(transport.create).toHaveBeenCalledTimes(1);
   });
 
   it("classifies valid JSON rejected by Zod and logs only issue structure", async () => {
@@ -235,12 +322,13 @@ describe("Gemini Interactions recipe generator", () => {
       ingredientId: "missing-ingredient-id",
       usage: "all",
     }];
-    const generator = createGeminiRecipeGenerator({
-      transport: transportWith({
+    const transport = transportWith({
         status: "completed",
         output_text: JSON.stringify(invalidOutput),
         steps: [],
-      }),
+      });
+    const generator = createGeminiRecipeGenerator({
+      transport,
       timeoutMs: 100,
     });
 
@@ -277,6 +365,7 @@ describe("Gemini Interactions recipe generator", () => {
     expect(serializedLog).not.toContain("another-secret-name");
     expect(serializedLog).not.toContain("missing-ingredient-id");
     expect(serializedLog).not.toContain("secret-user-input");
+    expect(transport.create).toHaveBeenCalledTimes(1);
   });
 
   it("redacts model-generated unknown field names from schema diagnostics", async () => {
@@ -317,7 +406,7 @@ describe("Gemini Interactions recipe generator", () => {
   it("maps timeout, quota and communication failures to Japanese API errors", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const never: GeminiTransport = { create: () => new Promise(() => undefined) };
-    await expect(createGeminiRecipeGenerator({ transport: never, timeoutMs: 5 }).generate({
+    await expect(createGeminiRecipeGenerator({ transport: never, timeoutMs: 5, retryDelayMs: 0 }).generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "x" }],
       source: textSource,
@@ -331,7 +420,7 @@ describe("Gemini Interactions recipe generator", () => {
     })).rejects.toMatchObject({ code: "AI_LIMIT_REACHED", status: 429 });
 
     const network: GeminiTransport = { create: async () => { throw new Error("ECONNRESET"); } };
-    await expect(createGeminiRecipeGenerator({ transport: network }).generate({
+    await expect(createGeminiRecipeGenerator({ transport: network, retryDelayMs: 0 }).generate({
       systemInstruction: "system",
       input: [{ type: "text", text: "x" }],
       source: textSource,

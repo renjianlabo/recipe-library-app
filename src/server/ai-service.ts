@@ -17,6 +17,7 @@ import { assertSafePublicUrl, type HostLookup } from "./url-safety";
 import {
   createYouTubeSnippetFetcher,
   extractYouTubeVideoId,
+  isTransientYouTubeMetadataError,
   type YouTubeSnippet,
   type YouTubeSnippetFetcher,
 } from "./youtube";
@@ -78,6 +79,8 @@ function uniqueWarnings(values: string[]): string[] {
 
 const YOUTUBE_DESCRIPTION_ONLY_WARNING =
   "動画内容を解析できなかったため、概要欄の情報のみから作成しています。";
+const YOUTUBE_METADATA_UNAVAILABLE_WARNING =
+  "YouTubeの概要欄を取得できなかったため、動画から確認できた内容のみで作成しています。";
 
 function youtubeVideoAnalysisError(): ApiError {
   return new ApiError(
@@ -99,9 +102,15 @@ function hasSufficientDescriptionRecipe(output: AiModelOutput): boolean {
   ].filter((item) => item.name.trim());
   return Boolean(
     output.draft.title.trim()
-      && namedItems.length > 0
-      && output.draft.steps.some((step) => step.text.trim()),
+      && (namedItems.length > 0 || output.draft.steps.some((step) => step.text.trim())),
   );
+}
+
+function logYouTubeMetadataFallback(error: unknown): void {
+  console.error("[recipe-library-youtube-fallback]", {
+    phase: "youtube_metadata_fallback",
+    code: error instanceof ApiError ? error.code : null,
+  });
 }
 
 function youtubeMetadataEvidence(snippet: YouTubeSnippet): string {
@@ -173,14 +182,27 @@ export function createAiRecipeService(options: {
 
       if (request.type === "youtube") {
         const video = extractYouTubeVideoId(request.url);
-        const snippet = await youtubeSnippetFetcher(video.videoId);
-        const metadataEvidence = youtubeMetadataEvidence(snippet);
-        const youtubeInstruction = `${BASE_SYSTEM_INSTRUCTION}
+        let snippet: YouTubeSnippet | null = null;
+        try {
+          snippet = await youtubeSnippetFetcher(video.videoId);
+        } catch (error) {
+          if (!isTransientYouTubeMetadataError(error)) throw error;
+          logYouTubeMetadataFallback(error);
+        }
+        const metadataEvidence = snippet
+          ? youtubeMetadataEvidence(snippet)
+          : "YouTube Data APIのメタデータは一時的に取得できませんでした。公開動画の映像・音声だけを証拠として使用してください。";
+        const youtubeInstruction = snippet
+          ? `${BASE_SYSTEM_INSTRUCTION}
 YouTube Data APIの概要欄と公開動画の映像・音声を統合してください。
 材料・調味料・分量・人数は概要欄を最優先し、概要欄に明記された値を動画だけを理由に置き換えないでください。
 工程・火加減・加熱時間・料理のコツは、概要欄にない場合だけ動画で実際に確認できた情報から補ってください。
 概要欄と動画が矛盾する場合は値を勝手に確定せず、両方の内容をwarningsへ記録してください。
-一般的な料理知識から推測せず、栄養成分やタグを生成しないでください。`;
+一般的な料理知識から推測せず、栄養成分やタグを生成しないでください。`
+          : `${BASE_SYSTEM_INSTRUCTION}
+YouTube Data APIのメタデータを利用できないため、公開動画の映像・音声で実際に確認できる情報だけを抽出してください。
+タイトル、概要欄、一般的な料理知識から不足情報を推測せず、確認できない内容はwarningsへ記録してください。
+栄養成分やタグを生成しないでください。`;
 
         try {
           const output = await generator.generate({
@@ -191,12 +213,21 @@ YouTube Data APIの概要欄と公開動画の映像・音声を統合してく�
             ],
             source: { type: "youtube", url: video.url },
           });
-          return finalizeOutput(output, { type: "youtube", url: video.url }, snippet.warnings);
+          return finalizeOutput(
+            output,
+            { type: "youtube", url: video.url },
+            snippet ? snippet.warnings : [YOUTUBE_METADATA_UNAVAILABLE_WARNING],
+          );
         } catch (videoError) {
-          if (isAiError(videoError, "AI_LIMIT_REACHED", "AI_NOT_CONFIGURED")) {
+          if (isAiError(
+            videoError,
+            "AI_LIMIT_REACHED",
+            "AI_NOT_CONFIGURED",
+            "AI_CONFIGURATION_ERROR",
+          )) {
             throw videoError;
           }
-          if (!snippet.description) {
+          if (!snippet?.description) {
             throw youtubeVideoAnalysisError();
           }
 
@@ -209,6 +240,7 @@ YouTube動画を利用できないため、YouTube Data APIで取得したタイ
 概要欄だけでは確定できない内容はwarningsへ記録してください。`,
               input: [{ type: "text", text: metadataEvidence }],
               source: { type: "youtube", url: video.url },
+              retryTransient: false,
             });
           } catch (fallbackError) {
             if (isAiError(

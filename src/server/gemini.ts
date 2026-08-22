@@ -41,6 +41,7 @@ export type GenerateRecipeRequest = {
   systemInstruction: string;
   source: RecipeDraft["source"];
   expectedUrlContext?: string;
+  retryTransient?: boolean;
 };
 
 export type RecipeGenerator = {
@@ -49,6 +50,7 @@ export type RecipeGenerator = {
 
 export const DEFAULT_AI_TIMEOUT_MS = 45_000;
 export const MAX_AI_TIMEOUT_MS = 120_000;
+export const DEFAULT_AI_RETRY_DELAY_MS = 700;
 
 type GeminiErrorCandidate = {
   status?: unknown;
@@ -89,7 +91,7 @@ function safeGeminiCode(error: unknown): string | null {
 
   const message = typeof candidate?.message === "string" ? candidate.message : "";
   const knownCode = message.match(
-    /\b(RESOURCE_EXHAUSTED|INVALID_ARGUMENT|PERMISSION_DENIED|UNAUTHENTICATED|NOT_FOUND|INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED)\b/u,
+    /\b(RESOURCE_EXHAUSTED|INVALID_ARGUMENT|PERMISSION_DENIED|UNAUTHENTICATED|NOT_FOUND|INTERNAL|UNAVAILABLE|DEADLINE_EXCEEDED|ECONNRESET|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EAI_AGAIN)\b/u,
   );
   return knownCode?.[1] ?? null;
 }
@@ -243,6 +245,46 @@ function classifyGeminiError(error: unknown, timedOut: boolean): ApiError {
   );
 }
 
+function isTransientGeminiError(error: unknown, timedOut: boolean): boolean {
+  if (error instanceof ApiError) return false;
+
+  const status = safeGeminiStatus(error);
+  const code = safeGeminiCode(error);
+  if (status === 429 || code === "RESOURCE_EXHAUSTED") return false;
+  if ([400, 401, 403, 404].includes(status ?? 0)) return false;
+  if (["INVALID_ARGUMENT", "PERMISSION_DENIED", "UNAUTHENTICATED", "NOT_FOUND"].includes(code ?? "")) {
+    return false;
+  }
+
+  return timedOut
+    || (error instanceof Error && error.name === "AbortError")
+    || (status !== null && status >= 500 && status <= 599)
+    || [
+      "INTERNAL",
+      "UNAVAILABLE",
+      "DEADLINE_EXCEEDED",
+      "ECONNRESET",
+      "ECONNREFUSED",
+      "ETIMEDOUT",
+      "ENOTFOUND",
+      "EAI_AGAIN",
+    ]
+      .includes(code ?? "");
+}
+
+function logGeminiRetry(error: unknown): void {
+  console.error("[recipe-library-gemini-retry]", {
+    phase: "gemini_transient_retry",
+    attempt: 2,
+    status: safeGeminiStatus(error),
+    code: safeGeminiCode(error),
+  });
+}
+
+function waitForRetry(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 function createGoogleTransport(apiKey: string): GeminiTransport {
   const client = new GoogleGenAI({ apiKey });
   return {
@@ -261,13 +303,15 @@ export function createGeminiRecipeGenerator(options: {
   apiKey?: string;
   model?: string;
   timeoutMs?: number;
+  retryDelayMs?: number;
 } = {}): RecipeGenerator {
   const model = options.model ?? process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
   const timeoutMs = options.timeoutMs ?? resolveAiTimeoutMs(process.env.AI_TIMEOUT_MS);
+  const retryDelayMs = options.retryDelayMs ?? DEFAULT_AI_RETRY_DELAY_MS;
 
   return {
     async generate(request) {
-      const apiKey = options.apiKey ?? process.env.GEMINI_API_KEY;
+      const apiKey = options.transport ? undefined : options.apiKey ?? process.env.GEMINI_API_KEY;
       if (!options.transport && !apiKey) {
         throw new ApiError(
           "AI_NOT_CONFIGURED",
@@ -277,39 +321,49 @@ export function createGeminiRecipeGenerator(options: {
         );
       }
       const transport = options.transport ?? createGoogleTransport(apiKey as string);
-      const controller = new AbortController();
-      let timedOut = false;
-      let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        timeoutHandle = setTimeout(() => {
-          timedOut = true;
-          controller.abort();
-          reject(new Error("Gemini interaction timed out"));
-        }, timeoutMs);
-      });
-
       let response: InteractionResponse;
-      try {
-        response = await Promise.race([
-          transport.create({
-            model,
-            input: request.input,
-            system_instruction: request.systemInstruction,
-            response_format: {
-              type: "text",
-              mime_type: "application/json",
-              schema: geminiRecipeDraftJsonSchema,
-            },
-            ...(request.expectedUrlContext ? { tools: [{ type: "url_context" as const }] } : {}),
-            store: false,
-          }, controller.signal),
-          timeoutPromise,
-        ]);
-      } catch (error) {
-        logGeminiApiFailure(error, timedOut);
-        throw classifyGeminiError(error, timedOut);
-      } finally {
-        if (timeoutHandle) clearTimeout(timeoutHandle);
+      for (let attempt = 1; ; attempt += 1) {
+        const controller = new AbortController();
+        let timedOut = false;
+        let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            timedOut = true;
+            controller.abort();
+            reject(new Error("Gemini interaction timed out"));
+          }, timeoutMs);
+        });
+
+        try {
+          response = await Promise.race([
+            transport.create({
+              model,
+              input: request.input,
+              system_instruction: request.systemInstruction,
+              response_format: {
+                type: "text",
+                mime_type: "application/json",
+                schema: geminiRecipeDraftJsonSchema,
+              },
+              ...(request.expectedUrlContext ? { tools: [{ type: "url_context" as const }] } : {}),
+              store: false,
+            }, controller.signal),
+            timeoutPromise,
+          ]);
+          break;
+        } catch (error) {
+          logGeminiApiFailure(error, timedOut);
+          const shouldRetry = request.retryTransient !== false
+            && attempt === 1
+            && isTransientGeminiError(error, timedOut);
+          if (!shouldRetry) {
+            throw classifyGeminiError(error, timedOut);
+          }
+          logGeminiRetry(error);
+          await waitForRetry(retryDelayMs);
+        } finally {
+          if (timeoutHandle) clearTimeout(timeoutHandle);
+        }
       }
 
       if (response.status === "budget_exceeded") {
