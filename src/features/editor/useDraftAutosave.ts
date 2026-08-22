@@ -21,11 +21,13 @@ export function useDraftAutosave<T>({
   draftKey,
   value,
   enabled = true,
+  recoverExisting = true,
   delayMs = 600,
 }: {
   draftKey: string;
   value: T;
   enabled?: boolean;
+  recoverExisting?: boolean;
   delayMs?: number;
 }) {
   const { user } = useAuth();
@@ -46,6 +48,14 @@ export function useDraftAutosave<T>({
   useEffect(() => {
     if (!user || !identity) return;
     let active = true;
+    if (!recoverExisting) {
+      void deleteLocalDraft(user.uid, draftKey).catch(() => undefined).finally(() => {
+        if (!active) return;
+        setRecovery({ identity, state: "ready", draft: null });
+        setSaveSnapshot({ identity, lastSavedAt: null, error: null });
+      });
+      return () => { active = false; };
+    }
     void loadLocalDraft<T>(user.uid, draftKey)
       .then((stored) => {
         if (!active) return;
@@ -68,7 +78,7 @@ export function useDraftAutosave<T>({
         });
       });
     return () => { active = false; };
-  }, [draftKey, identity, user]);
+  }, [draftKey, identity, recoverExisting, user]);
 
   useEffect(() => {
     if (!user || !identity || recoveryState !== "ready") return;

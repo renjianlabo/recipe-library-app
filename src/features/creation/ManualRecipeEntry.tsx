@@ -35,6 +35,7 @@ export function ManualRecipeEntry({ editAiDraft = false }: { editAiDraft?: boole
       needsServingsConfirmation={needsServingsConfirmation}
       completionAfterSave
       clearAiSessionOnSave={editAiDraft}
+      allowDraftRecovery={!editAiDraft}
       closeHref="/create"
     />
   );

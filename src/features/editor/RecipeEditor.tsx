@@ -54,6 +54,7 @@ export function RecipeEditor({
   needsServingsConfirmation = false,
   completionAfterSave = false,
   clearAiSessionOnSave = false,
+  allowDraftRecovery = true,
   closeHref,
 }: {
   initialDraft: RecipeDraft;
@@ -65,6 +66,7 @@ export function RecipeEditor({
   needsServingsConfirmation?: boolean;
   completionAfterSave?: boolean;
   clearAiSessionOnSave?: boolean;
+  allowDraftRecovery?: boolean;
   closeHref?: string;
 }) {
   const router = useRouter();
@@ -76,7 +78,7 @@ export function RecipeEditor({
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState<{ attemptedRecipe: Recipe } | null>(null);
   const [recipeId] = useState(() => existingRecipe?.id ?? crypto.randomUUID());
-  const autosave = useDraftAutosave({ draftKey, value: draft });
+  const autosave = useDraftAutosave({ draftKey, value: draft, recoverExisting: allowDraftRecovery });
 
   const setEditorDraft = useCallback((next: RecipeDraft) => {
     setDraft(next);
