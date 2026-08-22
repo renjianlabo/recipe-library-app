@@ -30,6 +30,10 @@ const SAFE_EMBEDDED_AMOUNT_UNITS = new Set([
   "g", "kg", "mg", "ml", "L", "l", "cc", "個", "本", "枚", "玉", "束",
   "袋", "缶", "パック", "大さじ", "小さじ", "カップ", "合", "片", "丁", "cm",
 ]);
+const NON_NUMERIC_AMOUNT_TEXTS = new Set([
+  ...QUALITATIVE_AMOUNTS,
+  "お好みで",
+]);
 const CONTINUOUS_UNITS = new Set([
   "g",
   "kg",
@@ -172,6 +176,24 @@ export function parseAmountWithUnit(
   return numericAmount === null || !unit ? null : { numericAmount, unit };
 }
 
+/** Converts only unambiguous AI numeric values; unsupported text remains null. */
+export function normalizeNumericAmount(value: unknown): number | null {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const text = cleanAmountText(value);
+  if (!text || NON_NUMERIC_AMOUNT_TEXTS.has(text)) return null;
+
+  const direct = parseAmountText(text);
+  if (direct !== null) return direct;
+
+  const combined = parseAmountWithUnit(text);
+  return combined && SAFE_EMBEDDED_AMOUNT_UNITS.has(combined.unit)
+    ? combined.numericAmount
+    : null;
+}
+
 export function formatScaledIngredientAmount(
   ingredient: IngredientAmount & { unit: string },
   savedServings: number,
@@ -222,15 +244,16 @@ export function normalizeIngredientAmount(
 }
 
 /**
- * Normalizes evidence extracted by AI without trusting its derived numeric value.
- * Only an exact numeric expression, optionally paired with a known unit, is
- * converted. Ambiguous text is preserved and deliberately remains unscaled.
+ * Normalizes AI numeric metadata while preserving the displayed amount text.
+ * When the metadata is unusable, an unambiguous displayed amount is a safe
+ * fallback; ambiguous text deliberately remains unscaled.
  */
 export function normalizeAiIngredientAmount(
   amountText: unknown,
+  numericAmount: unknown = null,
   unit: unknown = "",
 ): IngredientAmount & { unit: string } {
-  const text = cleanAmountText(amountText);
+  const text = typeof amountText === "string" ? amountText : cleanAmountText(amountText);
   const cleanUnit = cleanAmountText(unit);
   if (isQualitativeAmount(text)) {
     return { amountText: text, numericAmount: null, unit: cleanUnit };
@@ -239,25 +262,16 @@ export function normalizeAiIngredientAmount(
     return { amountText: cleanUnit, numericAmount: null, unit: "" };
   }
 
-  const direct = parseAmountText(text);
-  if (direct !== null) {
-    return {
-      amountText: formatDecimalAmount(direct),
-      numericAmount: direct,
-      unit: cleanUnit,
-    };
+  const amountTextNumeric = normalizeNumericAmount(text);
+  if (amountTextNumeric === null) {
+    return { amountText: text, numericAmount: null, unit: cleanUnit };
   }
 
-  const combined = parseAmountWithUnit(text, cleanUnit);
-  if (combined && SAFE_EMBEDDED_AMOUNT_UNITS.has(combined.unit)) {
-    return {
-      amountText: formatDecimalAmount(combined.numericAmount),
-      numericAmount: combined.numericAmount,
-      unit: combined.unit,
-    };
-  }
-
-  return { amountText: text, numericAmount: null, unit: cleanUnit };
+  return {
+    amountText: text,
+    numericAmount: normalizeNumericAmount(numericAmount) ?? amountTextNumeric,
+    unit: cleanUnit,
+  };
 }
 
 export function scaleAmount(

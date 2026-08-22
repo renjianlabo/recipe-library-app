@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { cleanAmountText, normalizeIngredientAmount, parseAmountText } from "./amounts";
+import { cleanAmountText, normalizeIngredientAmount, normalizeNumericAmount } from "./amounts";
 import {
   isHttpUrl,
   normalizeRecipeSource,
@@ -59,7 +59,7 @@ function addIngredientAmountIssues(
     return;
   }
 
-  const parsed = parseAmountText(amountText);
+  const parsed = normalizeNumericAmount(amountText);
   if (parsed === null) {
     if (value.numericAmount !== null) {
       context.addIssue({

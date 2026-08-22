@@ -52,7 +52,7 @@ describe("Gemini Interactions recipe generator", () => {
     }), expect.any(AbortSignal));
   });
 
-  it("normalizes unit-bearing and qualitative amounts without trusting AI numericAmount", async () => {
+  it("normalizes string numericAmount values while preserving amountText", async () => {
     const rawOutput = modelOutput();
     const rawAmounts = [
       "150g", "150 g", "2個", "1/2個", "0.5個",
@@ -63,13 +63,18 @@ describe("Gemini Interactions recipe generator", () => {
       id: `item-${index + 1}`,
       name: `項目${index + 1}`,
       amountText,
-      numericAmount: index === 0 ? 150 : 999,
+      numericAmount: amountText,
       unit: "",
       note: "",
     }));
-    rawOutput.draft.ingredients = items.slice(0, 5);
-    rawOutput.draft.seasonings = items.slice(5);
-    rawOutput.draft.steps[0].ingredientRefs = [];
+    const rawDraft = rawOutput.draft as unknown as {
+      ingredients: typeof items;
+      seasonings: typeof items;
+      steps: Array<{ ingredientRefs: unknown[] }>;
+    };
+    rawDraft.ingredients = items.slice(0, 5);
+    rawDraft.seasonings = items.slice(5);
+    rawDraft.steps[0].ingredientRefs = [];
     const generator = createGeminiRecipeGenerator({
       transport: transportWith({
         status: "completed",
@@ -88,21 +93,21 @@ describe("Gemini Interactions recipe generator", () => {
       .map(({ amountText, numericAmount, unit }) => ({ amountText, numericAmount, unit }));
 
     expect(normalized).toEqual([
-      { amountText: "150", numericAmount: 150, unit: "g" },
-      { amountText: "150", numericAmount: 150, unit: "g" },
-      { amountText: "2", numericAmount: 2, unit: "個" },
-      { amountText: "0.5", numericAmount: 0.5, unit: "個" },
-      { amountText: "0.5", numericAmount: 0.5, unit: "個" },
-      { amountText: "2", numericAmount: 2, unit: "大さじ" },
-      { amountText: "2", numericAmount: 2, unit: "大さじ" },
-      { amountText: "1", numericAmount: 1, unit: "小さじ" },
-      { amountText: "60", numericAmount: 60, unit: "ml" },
-      { amountText: "60", numericAmount: 60, unit: "ml" },
+      { amountText: "150g", numericAmount: 150, unit: "" },
+      { amountText: "150 g", numericAmount: 150, unit: "" },
+      { amountText: "2個", numericAmount: 2, unit: "" },
+      { amountText: "1/2個", numericAmount: 0.5, unit: "" },
+      { amountText: "0.5個", numericAmount: 0.5, unit: "" },
+      { amountText: "大さじ2", numericAmount: 2, unit: "" },
+      { amountText: "大さじ 2", numericAmount: 2, unit: "" },
+      { amountText: "小さじ1", numericAmount: 1, unit: "" },
+      { amountText: "60ml", numericAmount: 60, unit: "" },
+      { amountText: "60 ml", numericAmount: 60, unit: "" },
       { amountText: "少々", numericAmount: null, unit: "" },
       { amountText: "適量", numericAmount: null, unit: "" },
       { amountText: "適宜", numericAmount: null, unit: "" },
       { amountText: "ひとつまみ", numericAmount: null, unit: "" },
-      { amountText: "1袋(200g)", numericAmount: null, unit: "" },
+      { amountText: "1袋（200g）", numericAmount: null, unit: "" },
       { amountText: "1本程度", numericAmount: null, unit: "" },
       { amountText: "お好みで", numericAmount: null, unit: "" },
     ]);
@@ -115,18 +120,18 @@ describe("Gemini Interactions recipe generator", () => {
       id: "材料 1",
       name: "豚肉",
       amountText: "150g",
-      numericAmount: 999,
+      numericAmount: "150g",
       unit: "g",
       note: "",
-    }];
+    }] as unknown as typeof rawOutput.draft.ingredients;
     rawOutput.draft.seasonings = [{
       id: "調味料 1",
       name: "しょうゆ",
       amountText: "大さじ2",
-      numericAmount: 999,
+      numericAmount: "大さじ2",
       unit: "大さじ",
       note: "",
-    }];
+    }] as unknown as typeof rawOutput.draft.seasonings;
     rawOutput.draft.steps = [{
       id: "工程 99",
       order: 99,
@@ -155,10 +160,10 @@ describe("Gemini Interactions recipe generator", () => {
     });
 
     expect(result.draft.ingredients[0]).toMatchObject({
-      id: "ingredient-1", amountText: "150", numericAmount: 150, unit: "g",
+      id: "ingredient-1", amountText: "150g", numericAmount: 150, unit: "g",
     });
     expect(result.draft.seasonings?.[0]).toMatchObject({
-      id: "seasoning-1", amountText: "2", numericAmount: 2, unit: "大さじ",
+      id: "seasoning-1", amountText: "大さじ2", numericAmount: 2, unit: "大さじ",
     });
     expect(result.draft.steps[0]).toMatchObject({ id: "step-1", order: 1 });
     expect(result.draft.steps[0].ingredientRefs.map((reference) => reference.ingredientId))

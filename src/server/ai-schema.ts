@@ -149,7 +149,7 @@ export function normalizeAiWireOutput(
     const id = duplicateId ?? uniqueInternalId(item.id, `${prefix}-${index + 1}`, usedIds);
     if (duplicateId && !usedIds.has(duplicateId)) usedIds.add(duplicateId);
     if (!ingredientIdMap.has(item.id)) ingredientIdMap.set(item.id, id);
-    const amount = normalizeAiIngredientAmount(item.amountText, item.unit);
+    const amount = normalizeAiIngredientAmount(item.amountText, item.numericAmount, item.unit);
     return {
       id,
       name: item.name,

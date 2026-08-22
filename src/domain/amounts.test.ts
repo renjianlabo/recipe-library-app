@@ -10,6 +10,7 @@ import {
   isAllowedServing,
   normalizeIngredientAmount,
   normalizeAiIngredientAmount,
+  normalizeNumericAmount,
   parseAmountWithUnit,
   parseAmountText,
   scaleAmount,
@@ -58,29 +59,50 @@ describe("amount helpers", () => {
     });
   });
 
-  it("deterministically normalizes AI amounts with known embedded units", () => {
+  it("normalizes supported numericAmount values without guessing", () => {
+    const cases: Array<[unknown, number | null]> = [
+      [150, 150],
+      ["150", 150],
+      ["150g", 150],
+      ["大さじ2", 2],
+      ["小さじ1/2", 0.5],
+      ["1/2", 0.5],
+      ["少々", null],
+      ["適量", null],
+      ["お好みで", null],
+      ["", null],
+      [null, null],
+      [undefined, null],
+      ["abc", null],
+      [Number.NaN, null],
+      [Number.POSITIVE_INFINITY, null],
+    ];
+
+    for (const [input, expected] of cases) {
+      expect(normalizeNumericAmount(input)).toBe(expected);
+    }
+  });
+
+  it("preserves AI amount text while normalizing numeric metadata", () => {
     const cases = [
-      ["150g", "150", 150, "g"],
-      ["150 g", "150", 150, "g"],
-      ["2個", "2", 2, "個"],
-      ["1/2個", "0.5", 0.5, "個"],
-      ["0.5個", "0.5", 0.5, "個"],
-      ["大さじ2", "2", 2, "大さじ"],
-      ["大さじ 2", "2", 2, "大さじ"],
-      ["小さじ1", "1", 1, "小さじ"],
-      ["60ml", "60", 60, "ml"],
-      ["60 ml", "60", 60, "ml"],
+      ["150g", "150g", 150, "g"],
+      ["150 g", "150 g", 150, "g"],
+      ["2個", "2個", 2, "個"],
+      ["1/2個", "1/2個", 0.5, "個"],
+      ["0.5個", "0.5個", 0.5, "個"],
+      ["大さじ2", "大さじ2", 2, "大さじ"],
+      ["小さじ1", "小さじ1", 1, "小さじ"],
     ] as const;
 
     for (const [input, amountText, numericAmount, unit] of cases) {
-      expect(normalizeAiIngredientAmount(input)).toEqual({ amountText, numericAmount, unit });
+      expect(normalizeAiIngredientAmount(input, input, unit)).toEqual({ amountText, numericAmount, unit });
     }
   });
 
   it("keeps ambiguous AI amounts and never invents a numeric value", () => {
     for (const input of ["少々", "適量", "適宜", "ひとつまみ", "1袋（200g）", "1本程度", "お好みで"]) {
-      expect(normalizeAiIngredientAmount(input)).toEqual({
-        amountText: input.normalize("NFKC"),
+      expect(normalizeAiIngredientAmount(input, input)).toEqual({
+        amountText: input,
         numericAmount: null,
         unit: "",
       });
