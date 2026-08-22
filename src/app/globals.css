@@ -1073,7 +1073,8 @@ body {
 
 /* Figma Make manual form and recipe detail */
 .page-container.editor-page.manual-content {
-  padding: calc(58px + env(safe-area-inset-top)) 20px calc(42px + env(safe-area-inset-bottom));
+  padding: calc(58px + env(safe-area-inset-top)) 20px calc(124px + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(104px + env(safe-area-inset-bottom));
 }
 
 .manual-form .form-section { margin-bottom: 27px; }
@@ -1209,8 +1210,23 @@ body {
 .manual-form .tag-input-row button { border: 0; border-radius: 10px; background: var(--accent-soft); color: #a05e45; font-size: 11px; font-weight: 800; }
 .manual-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .manual-tags button { display: inline-flex; min-height: 27px; align-items: center; gap: 4px; padding: 4px 8px; border: 0; border-radius: 999px; background: var(--sage); color: #667764; font-size: 10px; }
-.manual-save { display: grid; gap: 8px; margin-top: 32px; padding-bottom: 12px; text-align: center; }
-.manual-save small { color: #aaa9a1; font-size: 9px; }
+.manual-save {
+  position: fixed;
+  z-index: 25;
+  right: max(0px, calc((100vw - 402px) / 2));
+  bottom: max(0px, calc((100dvh - 874px) / 2));
+  left: max(0px, calc((100vw - 402px) / 2));
+  display: grid;
+  margin: 0;
+  padding: 10px max(20px, env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+  border-top: 1px solid rgb(231 229 221 / 90%);
+  background: rgb(255 254 250 / 96%);
+  box-shadow: 0 -5px 16px rgb(57 49 32 / 5%);
+  text-align: center;
+  backdrop-filter: blur(14px);
+}
+
+.manual-save .primary-flow-button { width: 100%; }
 
 /* Figma Make AI review and save-complete flow. */
 .ai-review-page { padding: calc(58px + env(safe-area-inset-top)) 20px calc(108px + env(safe-area-inset-bottom)); background: var(--paper); }

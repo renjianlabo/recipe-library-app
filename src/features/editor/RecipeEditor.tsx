@@ -156,7 +156,6 @@ export function RecipeEditor({
           <button className="primary-flow-button" type="button" disabled={saving} onClick={() => void handleSave()}>
             {saving ? "保存中…" : saveLabel}
           </button>
-          <small>保存前に必須項目を確認します</small>
         </footer>
 
         {autosave.recoveryState === "available" ? (

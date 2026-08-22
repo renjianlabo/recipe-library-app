@@ -18,3 +18,18 @@ describe("mobile form control typography", () => {
     expect(css).not.toMatch(/maximum-scale|user-scalable|\bzoom\s*:/u);
   });
 });
+
+describe("recipe editor save bar", () => {
+  it("fixes the shared save bar above the safe area within the app width", () => {
+    expect(css).toMatch(/\.manual-save\s*\{[^}]*position:\s*fixed;/u);
+    expect(css).toMatch(/\.manual-save\s*\{[^}]*bottom:[^;]*100dvh\s*-\s*874px/u);
+    expect(css).toMatch(/\.manual-save\s*\{[^}]*100vw\s*-\s*402px/u);
+    expect(css).toMatch(/\.manual-save\s*\{[^}]*env\(safe-area-inset-bottom\)/u);
+  });
+
+  it("reserves scroll space for the final editor fields", () => {
+    expect(css).toMatch(
+      /\.page-container\.editor-page\.manual-content\s*\{[^}]*padding:[^;]*124px[^;]*safe-area-inset-bottom[^;]*;[^}]*scroll-padding-bottom:[^;]*104px[^;]*safe-area-inset-bottom/u,
+    );
+  });
+});
