@@ -18,6 +18,10 @@ describe("UnitSelect", () => {
       "その他",
     ]);
     expect(screen.getByRole("combobox", { name: "単位" })).toHaveValue("");
+    expect(RECIPE_UNIT_OPTIONS.map(([value]) => value)).toEqual([
+      "", "g", "ml", "個", "本", "枚", "片", "房", "玉", "束", "袋", "缶", "パック",
+      "大さじ", "小さじ", "カップ", "合",
+    ]);
   });
 
   it("stores a preset unit and only shows free input for other", () => {
@@ -39,5 +43,12 @@ describe("UnitSelect", () => {
     render(<Harness initialValue="滴" />);
     expect(screen.getByRole("combobox", { name: "単位" })).toHaveValue("__other_unit__");
     expect(screen.getByRole("textbox", { name: "その他の単位" })).toHaveValue("滴");
+  });
+
+  it.each(["kg", "L"])("keeps legacy %s values through the other-unit input", (legacyUnit) => {
+    render(<Harness initialValue={legacyUnit} />);
+    expect(screen.getByRole("combobox", { name: "単位" })).toHaveValue("__other_unit__");
+    expect(screen.getByRole("textbox", { name: "その他の単位" })).toHaveValue(legacyUnit);
+    expect(screen.queryByRole("option", { name: legacyUnit })).not.toBeInTheDocument();
   });
 });

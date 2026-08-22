@@ -1272,3 +1272,13 @@ body {
 .detail-scroll::-webkit-scrollbar { display: none; }
 .detail-steps > li > p { min-width: 0; flex: 1; }
 .detail-actions { background: rgb(255 254 250 / 96%); }
+
+/* Keep iOS Safari from auto-zooming focused form controls without disabling user zoom. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea,
+  [contenteditable="true"] {
+    font-size: 16px !important;
+  }
+}

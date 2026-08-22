@@ -28,7 +28,7 @@ const PREFIX_DISPLAY_UNITS = new Set(["大さじ", "小さじ"]);
 const MEASURING_UNITS = new Set(["大さじ", "小さじ", "カップ"]);
 const SAFE_EMBEDDED_AMOUNT_UNITS = new Set([
   "g", "kg", "mg", "ml", "L", "l", "cc", "個", "本", "枚", "玉", "束",
-  "袋", "缶", "パック", "大さじ", "小さじ", "カップ", "合", "片", "丁", "cm",
+  "袋", "缶", "パック", "大さじ", "小さじ", "カップ", "合", "片", "房", "丁", "cm",
 ]);
 const NON_NUMERIC_AMOUNT_TEXTS = new Set([
   ...QUALITATIVE_AMOUNTS,

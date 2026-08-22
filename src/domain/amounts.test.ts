@@ -83,6 +83,27 @@ describe("amount helpers", () => {
     }
   });
 
+  it("normalizes 片 and 房 as safe countable units", () => {
+    expect(parseAmountWithUnit("にんにく 2片")).toBeNull();
+    expect(parseAmountWithUnit("2片")).toEqual({ numericAmount: 2, unit: "片" });
+    expect(parseAmountWithUnit("1房")).toEqual({ numericAmount: 1, unit: "房" });
+    expect(normalizeNumericAmount("2片")).toBe(2);
+    expect(normalizeNumericAmount("1房")).toBe(1);
+    expect(formatScaledIngredientAmount({ amountText: "2", numericAmount: 2, unit: "片" }, 2, 1))
+      .toEqual({ amountText: "1", unit: "片", displayAmount: "1片" });
+    expect(formatScaledIngredientAmount({ amountText: "1", numericAmount: 1, unit: "房" }, 1, 2))
+      .toEqual({ amountText: "2", unit: "房", displayAmount: "2房" });
+  });
+
+  it("keeps legacy kg and L values parseable, scalable, and displayable", () => {
+    expect(normalizeNumericAmount("1kg")).toBe(1);
+    expect(normalizeNumericAmount("1L")).toBe(1);
+    expect(formatScaledIngredientAmount({ amountText: "1", numericAmount: 1, unit: "kg" }, 2, 1))
+      .toEqual({ amountText: "0.5", unit: "kg", displayAmount: "0.5kg" });
+    expect(formatScaledIngredientAmount({ amountText: "1", numericAmount: 1, unit: "L" }, 1, 2))
+      .toEqual({ amountText: "2", unit: "L", displayAmount: "2L" });
+  });
+
   it("preserves AI amount text while normalizing numeric metadata", () => {
     const cases = [
       ["150g", "150g", 150, "g"],
