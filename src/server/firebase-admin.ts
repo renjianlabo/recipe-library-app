@@ -1,5 +1,6 @@
 import { applicationDefault, cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth, type Auth } from "firebase-admin/auth";
+import { getFirestore, type Firestore } from "firebase-admin/firestore";
 
 type ServerEnvironment = Record<string, string | undefined>;
 
@@ -54,4 +55,8 @@ export function getFirebaseAdminApp(environment: ServerEnvironment = process.env
 
 export function getFirebaseAdminAuth(environment: ServerEnvironment = process.env): Auth {
   return getAuth(getFirebaseAdminApp(environment));
+}
+
+export function getFirebaseAdminFirestore(environment: ServerEnvironment = process.env): Firestore {
+  return getFirestore(getFirebaseAdminApp(environment));
 }

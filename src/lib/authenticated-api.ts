@@ -45,16 +45,16 @@ function fallbackHttpError(status: number): { code: string; message: string; rec
 }
 
 export async function authenticatedJson<T>(
-  user: Pick<User, "getIdToken">,
+  user: Pick<User, "getIdToken"> & { isDemo?: boolean },
   path: string,
   init: Omit<RequestInit, "body" | "headers"> & { body?: unknown } = {},
 ): Promise<T> {
-  const token = await user.getIdToken();
+  const token = user.isDemo ? null : await user.getIdToken();
   const response = await fetch(path, {
     ...init,
     method: init.method ?? "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       "Content-Type": "application/json",
     },
     body: init.body === undefined ? undefined : JSON.stringify(init.body),

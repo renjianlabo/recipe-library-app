@@ -152,7 +152,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
       <Link className="auth-link" href="/forgot-password">パスワードを忘れた方</Link>
       <div className="auth-divider"><span />または<span /></div>
       <Link className="auth-secondary auth-secondary-link" href="/signup">アカウントを作成</Link>
-      <button className="demo-button" type="button" onClick={() => { startDemo(); router.replace("/"); }}><b>デモモードで試す</b><small>アカウント登録なしでアプリを確認できます</small></button>
+      <button className="demo-button" type="button" disabled={busy} onClick={() => void run(startDemo, () => router.replace("/"))}><b>{busy ? "デモを準備中…" : "デモモードで試す"}</b><small>アカウント登録なしでアプリを確認できます</small></button>
     </main>
   );
 }

@@ -5,11 +5,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ImportRecipeFlow } from "./ImportRecipeFlow";
 
 const navigation = vi.hoisted(() => ({ push: vi.fn() }));
-const api = vi.hoisted(() => ({ authenticatedJson: vi.fn() }));
+const api = vi.hoisted(() => ({ authenticatedJson: vi.fn(), demo: false, refresh: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 vi.mock("@/components/AuthGate", () => ({ AuthGate: ({ children }: { children: ReactNode }) => children }));
-vi.mock("@/contexts/AuthProvider", () => ({ useAuth: () => ({ user: { uid: "user-1" } }) }));
+vi.mock("@/contexts/AuthProvider", () => ({ useAuth: () => api.demo ? ({ user: { uid: "demo-user", isDemo: true }, demoStatus: { active: true, expiresAt: "2099-01-01T00:00:00.000Z", aiLimit: 5, aiUsed: 5, aiRemaining: 0 }, refreshDemoStatus: api.refresh }) : ({ user: { uid: "user-1" }, demoStatus: { active: false }, refreshDemoStatus: api.refresh }) }));
 vi.mock("@/lib/authenticated-api", () => ({ authenticatedJson: api.authenticatedJson }));
 
 const response = {
@@ -34,6 +34,8 @@ beforeEach(() => {
   window.sessionStorage.clear();
   navigation.push.mockReset();
   api.authenticatedJson.mockReset().mockResolvedValue(response);
+  api.demo = false;
+  api.refresh.mockReset().mockResolvedValue({ active: true });
 });
 
 afterEach(cleanup);
@@ -65,5 +67,13 @@ describe("ImportRecipeFlow primary action", () => {
 
     resolveRequest?.(response);
     await waitFor(() => expect(navigation.push).toHaveBeenCalledWith("/create/ai/review"));
+  });
+
+  it("shows server quota and disables AI creation when a demo has no uses left", () => {
+    api.demo = true;
+    render(<ImportRecipeFlow mode="ai" />);
+    expect(screen.getByText((_, element) => element?.tagName === "STRONG" && element.textContent === "AI生成　残り 0 / 5 回")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /AIでレシピを作成/ })).toBeDisabled();
+    expect(screen.getByRole("link", { name: "手動でレシピを作成" })).toHaveAttribute("href", "/create/manual");
   });
 });

@@ -22,18 +22,25 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 
+import type { DemoStatus } from "@/domain/demo-session";
+import {
+  clearDemoLocalData,
+  DEMO_RECIPES_STORAGE_KEY,
+  DEMO_UID,
+  readLocalDemoExpiry,
+  writeLocalDemoSession,
+} from "@/lib/demo-local";
 import { getFirebaseClient, hasFirebaseClientConfig } from "@/lib/firebase-client";
 import { clearLocalDataForUser } from "@/lib/indexed-db";
-
-const DEMO_SESSION_KEY = "recipe-library-demo-session-v1";
 
 export type AppUser = Pick<User, "uid" | "displayName" | "email" | "emailVerified" | "getIdToken"> & {
   isDemo?: boolean;
 };
 
 const demoUser: AppUser = {
-  uid: "demo-user",
+  uid: DEMO_UID,
   displayName: "デモユーザー",
   email: null,
   emailVerified: true,
@@ -53,7 +60,10 @@ export type AuthContextValue = {
   signUpWithEmail: (email: string, password: string) => Promise<void>;
   resendVerification: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  startDemo: () => void;
+  demoStatus: DemoStatus;
+  startDemo: () => Promise<void>;
+  refreshDemoStatus: () => Promise<DemoStatus>;
+  endDemo: () => Promise<void>;
   signOutUser: () => Promise<void>;
   getIdToken: () => Promise<string>;
 };
@@ -69,16 +79,47 @@ function shouldUseRedirect(): boolean {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const configured = hasFirebaseClientConfig();
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(configured);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [demoStatus, setDemoStatus] = useState<DemoStatus>({ active: false });
+
+  const clearExpiredDemo = useCallback(async () => {
+    await clearDemoLocalData();
+    setDemoStatus({ active: false });
+    setUser(null);
+    setAccessError("デモ期間が終了しました。デモ中のデータをリセットしました。");
+    setLoading(false);
+    router.replace("/login");
+  }, [router]);
+
+  const refreshDemoStatus = useCallback(async (): Promise<DemoStatus> => {
+    const response = await fetch("/api/demo/status", { cache: "no-store" });
+    const status = await response.json().catch(() => ({ active: false })) as DemoStatus;
+    if (!response.ok) throw new Error("デモ状態を確認できませんでした。");
+    setDemoStatus(status);
+    if (status.active) writeLocalDemoSession(status);
+    return status;
+  }, []);
 
   useEffect(() => {
-    if (window.localStorage.getItem(DEMO_SESSION_KEY) === "1") {
+    const localExpiry = readLocalDemoExpiry();
+    if (localExpiry) {
+      if (new Date(localExpiry).getTime() <= Date.now()) {
+        queueMicrotask(() => void clearExpiredDemo());
+        return;
+      }
       queueMicrotask(() => {
-        setUser(demoUser);
-        setLoading(false);
+        void refreshDemoStatus().then((status) => {
+          if (!status.active) return clearExpiredDemo();
+          setUser(demoUser);
+          setLoading(false);
+        }).catch(() => {
+          setAccessError("デモ状態を確認できませんでした。もう一度デモを開始してください。");
+          setLoading(false);
+        });
       });
       return;
     }
@@ -115,7 +156,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(nextUser);
       setLoading(false);
     });
-  }, []);
+  }, [clearExpiredDemo, refreshDemoStatus]);
+
+  useEffect(() => {
+    if (!user?.isDemo || !demoStatus.active) return;
+    const checkExpiry = () => {
+      if (new Date(demoStatus.expiresAt).getTime() <= Date.now()) void clearExpiredDemo();
+    };
+    const interval = window.setInterval(checkExpiry, 60_000);
+    return () => window.clearInterval(interval);
+  }, [clearExpiredDemo, demoStatus, user]);
 
   const signIn = useCallback(async () => {
     const client = getFirebaseClient();
@@ -177,25 +227,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const startDemo = useCallback(() => {
-    window.localStorage.setItem(DEMO_SESSION_KEY, "1");
+  const startDemo = useCallback(async () => {
+    const response = await fetch("/api/demo/start", { method: "POST", cache: "no-store" });
+    const status = await response.json().catch(() => null) as DemoStatus | null;
+    if (!response.ok || !status?.active) throw new Error("デモモードを開始できませんでした。時間をおいてお試しください。");
+    if (status.newSession) {
+      await clearDemoLocalData();
+    } else if (!window.localStorage.getItem(DEMO_RECIPES_STORAGE_KEY)) {
+      window.localStorage.setItem(DEMO_RECIPES_STORAGE_KEY, "[]");
+    }
+    writeLocalDemoSession(status);
     setAccessError(null);
+    setDemoStatus(status);
     setUser(demoUser);
     setLoading(false);
   }, []);
 
+  const endDemo = useCallback(async () => {
+    await clearDemoLocalData();
+    setDemoStatus({ active: false });
+    setUser(null);
+    setAccessError(null);
+    router.replace("/login");
+  }, [router]);
+
   const signOutUser = useCallback(async () => {
     if (user?.isDemo) {
-      window.localStorage.removeItem(DEMO_SESSION_KEY);
-      await clearLocalDataForUser(user.uid);
-      setUser(null);
+      await endDemo();
       return;
     }
     const client = getFirebaseClient();
     const uid = client?.auth.currentUser?.uid ?? user?.uid;
     if (uid) await clearLocalDataForUser(uid);
     if (client) await signOut(client.auth);
-  }, [user]);
+  }, [endDemo, user]);
 
   const getIdToken = useCallback(async () => {
     if (!user) throw new Error("ログインが必要です。");
@@ -208,16 +273,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       configured,
       accessError,
+      demoStatus,
       signIn,
       signInWithEmail,
       signUpWithEmail,
       resendVerification,
       resetPassword,
       startDemo,
+      refreshDemoStatus,
+      endDemo,
       signOutUser,
       getIdToken,
     }),
-    [user, loading, configured, accessError, signIn, signInWithEmail, signUpWithEmail, resendVerification, resetPassword, startDemo, signOutUser, getIdToken],
+    [user, loading, configured, accessError, demoStatus, signIn, signInWithEmail, signUpWithEmail, resendVerification, resetPassword, startDemo, refreshDemoStatus, endDemo, signOutUser, getIdToken],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

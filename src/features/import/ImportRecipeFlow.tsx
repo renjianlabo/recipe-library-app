@@ -51,7 +51,7 @@ const MODE_META: Record<ImportMode, { title: string; description: string; action
 
 export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, demoStatus, refreshDemoStatus } = useAuth();
   const meta = MODE_META[mode];
   const [text, setText] = useState("");
   const [url, setUrl] = useState("");
@@ -114,6 +114,7 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "解析に失敗しました。入力内容は保持されています。");
     } finally {
+      if (user?.isDemo) await refreshDemoStatus().catch(() => undefined);
       setLoading(false);
     }
   };
@@ -186,9 +187,10 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
             </label>
           ) : null}
           {error ? <p className="alert error" role="alert">{error}</p> : null}
+          {user?.isDemo && demoStatus.active ? <section className="demo-ai-usage"><div><b>デモモード</b><strong>AI生成　残り {demoStatus.aiRemaining} / {demoStatus.aiLimit} 回</strong></div><div className="demo-ai-dots" aria-hidden="true">{Array.from({ length: demoStatus.aiLimit }, (_, index) => <i className={index < demoStatus.aiRemaining ? "active" : ""} key={index} />)}</div><small>{demoStatus.aiRemaining > 0 ? "デモ中のAI生成には利用回数の上限があります" : "デモモードのAI生成上限に達しました。手動作成は引き続き利用できます。"}</small>{demoStatus.aiRemaining === 0 ? <Link href="/create/manual">手動でレシピを作成</Link> : null}</section> : null}
           <p className="flow-note">AIが情報を整理します。内容は保存前に確認できます。</p>
           <footer className="ai-create-actions floating-action-bar">
-            <button className="primary-flow-button" type="submit" disabled={loading || (mode === "screenshot" && files.length === 0) || (mode === "ai" && !text.trim() && files.length === 0)}>{loading ? "レシピを作成中…" : <>{meta.action} <AppIcon name="arrow" size={18} /></>}</button>
+            <button className="primary-flow-button" type="submit" disabled={loading || (user?.isDemo && demoStatus.active && demoStatus.aiRemaining === 0) || (mode === "screenshot" && files.length === 0) || (mode === "ai" && !text.trim() && files.length === 0)}>{loading ? "レシピを作成中…" : <>{meta.action} <AppIcon name="arrow" size={18} /></>}</button>
           </footer>
         </form>
       </main>

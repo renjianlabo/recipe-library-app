@@ -13,6 +13,7 @@ import {
   saveLocalDraft,
   savePendingWrite,
 } from "@/lib/indexed-db";
+import { DEMO_RECIPES_STORAGE_KEY, DEMO_SESSION_KEY } from "@/lib/demo-local";
 
 import { AuthProvider, useAuth } from "./AuthProvider";
 
@@ -31,6 +32,9 @@ const firebaseMocks = vi.hoisted(() => ({
   signInWithRedirect: vi.fn(),
   signOut: vi.fn(),
 }));
+const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
+
+vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 
 vi.mock("firebase/auth", () => ({
   GoogleAuthProvider: class {
@@ -66,6 +70,8 @@ describe("AuthProvider logout", () => {
   beforeEach(async () => {
     cleanup();
     vi.clearAllMocks();
+    window.localStorage.clear();
+    window.sessionStorage.clear();
     await deleteRecipeLibraryLocalDatabase();
     firebaseMocks.auth.currentUser = null;
     firebaseMocks.listener = null;
@@ -122,5 +128,19 @@ describe("AuthProvider logout", () => {
     await expect(loadLocalDraft("user-b", "draft")).resolves.toEqual({ title: "B" });
     await expect(loadCookingSession("user-b")).resolves.toEqual({ recipeId: "recipe-b" });
     await expect(listPendingWrites("user-b")).resolves.toHaveLength(1);
+  });
+
+  it("clears expired demo data and returns to login before showing it", async () => {
+    window.localStorage.setItem(DEMO_SESSION_KEY, JSON.stringify({ expiresAt: new Date(Date.now() - 1_000).toISOString() }));
+    window.localStorage.setItem(DEMO_RECIPES_STORAGE_KEY, "[]");
+    await saveLocalDraft("demo-user", "draft", { title: "expired" });
+
+    render(<AuthProvider><SignOutHarness /></AuthProvider>);
+
+    await waitFor(() => expect(navigation.replace).toHaveBeenCalledWith("/login"));
+    expect(window.localStorage.getItem(DEMO_SESSION_KEY)).toBeNull();
+    expect(window.localStorage.getItem(DEMO_RECIPES_STORAGE_KEY)).toBeNull();
+    await expect(loadLocalDraft("demo-user", "draft")).resolves.toBeNull();
+    expect(screen.getByText("ログイン待ち")).toBeInTheDocument();
   });
 });

@@ -44,7 +44,7 @@ function createDemoRecipe(input: DemoRecipeInput, index: number): Recipe {
       text: step.text,
       ingredientRefs: step.ingredients.map((ingredientIndex) => ({
         ingredientId: ingredients[ingredientIndex].id,
-        usage: "full" as const,
+        usage: "all" as const,
       })),
       timers: step.timer ? [{
         id: `${input.id}-timer-${stepIndex + 1}`,

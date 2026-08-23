@@ -34,4 +34,14 @@ describe("authenticatedJson", () => {
     await expect(authenticatedJson(user, "/api/ai/status", { method: "GET" }))
       .rejects.toMatchObject({ code: "INVALID_RESPONSE" });
   });
+
+  it("uses the HttpOnly-cookie path for demo users without requesting a Firebase token", async () => {
+    const demoUser = { isDemo: true, getIdToken: vi.fn() };
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true })));
+    await expect(authenticatedJson<{ ok: boolean }>(demoUser, "/api/ai/extract", { body: { type: "text", text: "recipe" } })).resolves.toEqual({ ok: true });
+    expect(demoUser.getIdToken).not.toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith("/api/ai/extract", expect.objectContaining({
+      headers: expect.not.objectContaining({ Authorization: expect.anything() }),
+    }));
+  });
 });

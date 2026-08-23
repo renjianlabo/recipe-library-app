@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthProvider";
 import { createDemoRecipes } from "@/domain/demo-recipes";
 import { recipeSchema, type Recipe } from "@/domain/recipe";
 import { getFirebaseClient } from "@/lib/firebase-client";
+import { DEMO_RECIPES_STORAGE_KEY } from "@/lib/demo-local";
 import {
   isRecipeConflictError,
   readRecipe,
@@ -64,9 +65,7 @@ function withRecipe(recipes: readonly Recipe[], recipe: Recipe): Recipe[] {
 
 export const RecipeContext = createContext<RecipeContextValue | null>(null);
 const EMPTY_RECIPES: Recipe[] = [];
-const DEMO_RECIPES_STORAGE_KEY = "recipe-library-demo-recipes-v1";
-
-function readDemoRecipes(): Recipe[] {
+export function readDemoRecipes(): Recipe[] {
   try {
     const stored = window.localStorage.getItem(DEMO_RECIPES_STORAGE_KEY);
     if (!stored) return createDemoRecipes();
@@ -76,7 +75,7 @@ function readDemoRecipes(): Recipe[] {
       const result = recipeSchema.safeParse(value);
       return result.success && result.data.userId === "demo-user" ? [result.data] : [];
     });
-    return recipes.length ? recipes : createDemoRecipes();
+    return recipes;
   } catch {
     return createDemoRecipes();
   }
