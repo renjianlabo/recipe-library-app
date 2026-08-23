@@ -42,7 +42,7 @@ export default function RootLayout({
   const useE2eProviders = process.env.NODE_ENV === "development"
     && process.env.NEXT_PUBLIC_E2E_MODE === "1";
   const content = (
-    <Suspense fallback={<main className="center-screen">読み込み中です</main>}>
+    <Suspense fallback={<main className="page-container route-loading" aria-busy="true" aria-live="polite"><p>読み込み中です</p></main>}>
       <AppShell>{children}</AppShell>
     </Suspense>
   );

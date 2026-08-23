@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImportRecipeFlow } from "./ImportRecipeFlow";
 
-const navigation = vi.hoisted(() => ({ push: vi.fn() }));
+const navigation = vi.hoisted(() => ({ push: vi.fn(), prefetch: vi.fn() }));
 const api = vi.hoisted(() => ({ authenticatedJson: vi.fn(), demo: false, refresh: vi.fn() }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
@@ -33,6 +33,7 @@ const response = {
 beforeEach(() => {
   window.sessionStorage.clear();
   navigation.push.mockReset();
+  navigation.prefetch.mockReset();
   api.authenticatedJson.mockReset().mockResolvedValue(response);
   api.demo = false;
   api.refresh.mockReset().mockResolvedValue({ active: true });
@@ -41,6 +42,11 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("ImportRecipeFlow primary action", () => {
+  it("prefetches the review route used after a successful AI response", () => {
+    render(<ImportRecipeFlow mode="ai" />);
+    expect(navigation.prefetch).toHaveBeenCalledWith("/create/ai/review");
+  });
+
   it("renders one floating action and keeps the existing submit flow", async () => {
     render(<ImportRecipeFlow mode="ai" />);
     fireEvent.change(screen.getByPlaceholderText("レシピの文章やURLを貼り付けてください"), { target: { value: "テスト入力" } });

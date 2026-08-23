@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const css = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
 const layout = readFileSync(resolve(process.cwd(), "src/app/layout.tsx"), "utf8");
+const loading = readFileSync(resolve(process.cwd(), "src/app/loading.tsx"), "utf8");
 
 describe("mobile form control typography", () => {
   it("guarantees a 16px font for focusable form controls on mobile", () => {
@@ -44,5 +45,19 @@ describe("floating primary actions", () => {
   it("floats the AI create action and reserves scroll space", () => {
     expect(css).toMatch(/\.ai-create-actions\s*\{[^}]*position:\s*fixed;[^}]*100vw\s*-\s*402px[^}]*safe-area-inset-bottom/u);
     expect(css).toMatch(/\.ai-action-page\s*\{[^}]*padding-bottom:[^;]*132px[^;]*safe-area-inset-bottom[^}]*scroll-padding-bottom:/u);
+  });
+
+  it("avoids backdrop blur and multiple shadows on persistent floating surfaces", () => {
+    expect(css).toMatch(/\.bottom-nav\s*\{[^}]*background:\s*rgb\(255 254 250 \/ 96%\);[^}]*box-shadow:\s*0 8px 22px[^;]*;[^}]*backdrop-filter:\s*none;/u);
+    expect(css).toMatch(/\.floating-action-bar\s*\{[^}]*background:\s*rgb\(255 254 250 \/ 96%\);[^}]*box-shadow:\s*0 8px 22px[^;]*;[^}]*backdrop-filter:\s*none;/u);
+  });
+});
+
+describe("route loading state", () => {
+  it("keeps root loading content inside the app-sized page surface", () => {
+    expect(layout).toContain('className="page-container route-loading"');
+    expect(loading).toContain('className="page-container route-loading"');
+    expect(css).toMatch(/\.route-loading\s*\{[^}]*height:\s*100dvh;[^}]*min-height:\s*100dvh;/u);
+    expect(css).toMatch(/\.app-shell > \.route-loading\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*0;[^}]*background:\s*var\(--paper\);/u);
   });
 });

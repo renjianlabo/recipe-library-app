@@ -777,6 +777,20 @@ body {
 
 .page-container::-webkit-scrollbar { display: none; }
 .home-page, .recipes-page, .create-page { padding-bottom: calc(140px + env(safe-area-inset-bottom)); }
+.route-loading {
+  display: grid;
+  height: 100dvh;
+  min-height: 100dvh;
+  place-content: center;
+  background: var(--background);
+  text-align: center;
+}
+.app-shell > .route-loading {
+  height: 100%;
+  min-height: 0;
+  background: var(--paper);
+}
+.route-loading p { margin: 0; color: var(--muted); }
 
 .app-header {
   display: flex;
@@ -824,9 +838,9 @@ body {
   padding: 5px 18px 6px;
   border: 1px solid rgb(226 224 215 / 92%);
   border-radius: 22px;
-  background: rgb(255 254 250 / 88%);
-  box-shadow: 0 10px 28px rgb(57 49 32 / 13%), 0 2px 6px rgb(57 49 32 / 5%);
-  backdrop-filter: blur(15px);
+  background: rgb(255 254 250 / 96%);
+  box-shadow: 0 8px 22px rgb(57 49 32 / 12%);
+  backdrop-filter: none;
 }
 
 .bottom-nav a {
@@ -1333,9 +1347,9 @@ body {
   padding: 7px;
   border: 1px solid rgb(226 224 215 / 92%);
   border-radius: 22px;
-  background: rgb(255 254 250 / 88%);
-  box-shadow: 0 10px 28px rgb(57 49 32 / 13%), 0 2px 6px rgb(57 49 32 / 5%);
-  backdrop-filter: blur(15px);
+  background: rgb(255 254 250 / 96%);
+  box-shadow: 0 8px 22px rgb(57 49 32 / 12%);
+  backdrop-filter: none;
 }
 
 .ai-action-page {

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { AppIcon } from "@/components/AppIcon";
 import { AuthGate } from "@/components/AuthGate";
@@ -58,6 +58,10 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    router.prefetch("/create/ai/review");
+  }, [router]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
