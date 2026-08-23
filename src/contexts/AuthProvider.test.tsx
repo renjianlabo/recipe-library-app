@@ -14,8 +14,10 @@ import {
   savePendingWrite,
 } from "@/lib/indexed-db";
 import { DEMO_RECIPES_STORAGE_KEY, DEMO_SESSION_KEY } from "@/lib/demo-local";
+import { createDemoRecipes } from "@/domain/demo-recipes";
 
 import { AuthProvider, useAuth } from "./AuthProvider";
+import { readDemoRecipes } from "./RecipeProvider";
 
 type TestUser = {
   uid: string;
@@ -62,6 +64,17 @@ function SignOutHarness() {
         ログアウト
       </button>
       {completed ? <p>ログアウト完了</p> : null}
+    </div>
+  );
+}
+
+function DemoStartHarness() {
+  const { user, demoStatus, startDemo } = useAuth();
+  return (
+    <div>
+      <p>{user?.uid ?? "ログイン待ち"}</p>
+      <p>{demoStatus.active ? `AI残り${demoStatus.aiRemaining}/${demoStatus.aiLimit}` : "デモ未開始"}</p>
+      <button type="button" onClick={() => void startDemo()}>デモ開始</button>
     </div>
   );
 }
@@ -142,5 +155,32 @@ describe("AuthProvider logout", () => {
     expect(window.localStorage.getItem(DEMO_RECIPES_STORAGE_KEY)).toBeNull();
     await expect(loadLocalDraft("demo-user", "draft")).resolves.toBeNull();
     expect(screen.getByText("ログイン待ち")).toBeInTheDocument();
+  });
+
+  it("restores the complete initial recipe set on re-entry while preserving server AI quota", async () => {
+    const initial = createDemoRecipes();
+    const editedInitial = { ...initial[0], title: "編集した初期レシピ" };
+    const userCreated = { ...initial[1], id: "demo-user-created", title: "ユーザー作成レシピ" };
+    window.localStorage.setItem(DEMO_RECIPES_STORAGE_KEY, JSON.stringify([editedInitial, userCreated]));
+    vi.mocked(fetch).mockResolvedValueOnce(Response.json({
+      active: true,
+      createdAt: "2026-08-23T00:00:00.000Z",
+      expiresAt: "2026-08-24T00:00:00.000Z",
+      aiLimit: 5,
+      aiUsed: 2,
+      aiRemaining: 3,
+      newSession: false,
+    }));
+
+    render(<AuthProvider><DemoStartHarness /></AuthProvider>);
+    await waitFor(() => expect(firebaseMocks.listener).not.toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "デモ開始" }));
+
+    expect(await screen.findByText("demo-user")).toBeInTheDocument();
+    expect(screen.getByText("AI残り3/5")).toBeInTheDocument();
+    expect(window.localStorage.getItem(DEMO_RECIPES_STORAGE_KEY)).toBeNull();
+    expect(readDemoRecipes()).toEqual(initial);
+    expect(readDemoRecipes().some((recipe) => recipe.id === "demo-user-created")).toBe(false);
+    expect(readDemoRecipes().some((recipe) => recipe.title === "編集した初期レシピ")).toBe(false);
   });
 });

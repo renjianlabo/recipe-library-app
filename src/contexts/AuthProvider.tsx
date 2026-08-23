@@ -27,7 +27,6 @@ import { useRouter } from "next/navigation";
 import type { DemoStatus } from "@/domain/demo-session";
 import {
   clearDemoLocalData,
-  DEMO_RECIPES_STORAGE_KEY,
   DEMO_UID,
   readLocalDemoExpiry,
   writeLocalDemoSession,
@@ -231,11 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await fetch("/api/demo/start", { method: "POST", cache: "no-store" });
     const status = await response.json().catch(() => null) as DemoStatus | null;
     if (!response.ok || !status?.active) throw new Error("デモモードを開始できませんでした。時間をおいてお試しください。");
-    if (status.newSession) {
-      await clearDemoLocalData();
-    } else if (!window.localStorage.getItem(DEMO_RECIPES_STORAGE_KEY)) {
-      window.localStorage.setItem(DEMO_RECIPES_STORAGE_KEY, "[]");
-    }
+    await clearDemoLocalData();
     writeLocalDemoSession(status);
     setAccessError(null);
     setDemoStatus(status);
