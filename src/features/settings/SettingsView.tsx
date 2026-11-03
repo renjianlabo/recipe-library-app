@@ -215,14 +215,13 @@ function AuthenticatedSettings() {
         <section className={`card ${styles.section}`} aria-labelledby="backup-heading">
           <div>
             <h2 id="backup-heading">データ書き出し・復元</h2>
-            <p className="muted">レシピをJSONで持ち出し、同じ形式から一括復元できます。</p>
           </div>
 
           <div className={styles.actionBlock}>
             <div className={styles.blockHeader}>
               <div>
                 <h3>バックアップを書き出す</h3>
-                <p className="fine-print">現在のレシピ {recipes.length}件を検証済みJSONとして保存します。</p>
+                <p className="fine-print">現在のレシピ {recipes.length}件を保存します。</p>
               </div>
               <button className="button secondary" type="button" onClick={handleExport}>
                 JSONを書き出す
@@ -233,7 +232,7 @@ function AuthenticatedSettings() {
           <div className={styles.actionBlock}>
             <h3>現在形式のバックアップを復元</h3>
             <p className="fine-print">
-              まず全件を検証します。確認前や不正なファイルの選択時には、現在のデータを変更しません。
+              確認前や不正なファイルの選択時には、現在のデータを変更しません。
             </p>
             <label className={styles.fileField}>
               <span>現在形式のバックアップJSON</span>

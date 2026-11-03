@@ -24,7 +24,7 @@ type AiRecipeResponse = {
 const MODE_META: Record<ImportMode, { title: string; description: string; action: string }> = {
   ai: {
     title: "AIでレシピを作成",
-    description: "文章・画像・URLからレシピを作成できます",
+    description: "",
     action: "AIでレシピを作成",
   },
   text: {
@@ -74,7 +74,7 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
     try {
       let body: unknown;
       if (mode === "ai") {
-        if (!text.trim() && files.length === 0) throw new Error("レシピの文章、URL、または画像を追加してください。");
+        if (!text.trim() && files.length === 0) throw new Error("レシピの文章、動画・サイトのURL、または画像を追加してください。");
         if (files.length > 0) {
           validateImageFiles(files);
           const images = await prepareImages(files);
@@ -128,11 +128,11 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
       <main className="page-container flow-page ai-action-page">
         <header className="flow-header"><Link href="/create" aria-label="作成を閉じる"><AppIcon name="x" size={22} /></Link><h1>{meta.title}</h1></header>
         <form className="flow-content ai-input" onSubmit={(event) => void submit(event)}>
-          <p className="flow-lead">{meta.description}</p>
+          {meta.description ? <p className="flow-lead">{meta.description}</p> : null}
           {mode === "ai" ? (
             <>
-              <label className="ai-textarea"><textarea rows={10} maxLength={50000} value={text} onChange={(event) => setText(event.target.value)} placeholder="レシピの文章やURLを貼り付けてください" /><span>{text.length > 0 ? `${text.length}文字` : "コピーした文章・URLに対応"}</span></label>
-              <div className="attachment-row"><label className="attachment-add"><input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple onChange={(event) => { const selected = Array.from(event.target.files ?? []); setFiles(selected); try { validateImageFiles(selected); setError(null); } catch (cause) { setError(cause instanceof Error ? cause.message : "画像を確認してください。"); } }} /><AppIcon name="image" size={19} /><span>スクリーンショットを追加</span></label><div className="url-hint"><AppIcon name="link" size={16} />URLもそのまま貼り付けできます</div></div>
+              <label className="ai-textarea"><textarea rows={10} maxLength={50000} value={text} onChange={(event) => setText(event.target.value)} placeholder="レシピの文章や動画・サイトのURLを貼り付けてください" /><span>{text.length > 0 ? `${text.length}文字` : null}</span></label>
+              <div className="attachment-row"><label className="attachment-add"><input type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" multiple onChange={(event) => { const selected = Array.from(event.target.files ?? []); setFiles(selected); try { validateImageFiles(selected); setError(null); } catch (cause) { setError(cause instanceof Error ? cause.message : "画像を確認してください。"); } }} /><AppIcon name="image" size={19} /><span>画像を追加</span></label></div>
               {files.length ? <div className="attached-files">{files.map((file, index) => <span key={`${file.name}-${index}`}><AppIcon name="image" size={14} />{file.name}<button type="button" aria-label={`${file.name}を削除`} onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}>×</button></span>)}</div> : null}
             </>
           ) : mode === "text" ? (
@@ -192,7 +192,7 @@ export function ImportRecipeFlow({ mode }: { mode: ImportMode }) {
           ) : null}
           {error ? <p className="alert error" role="alert">{error}</p> : null}
           {user?.isDemo && demoStatus.active ? <section className="demo-ai-usage"><div><b>デモモード</b><strong>AI生成　残り {demoStatus.aiRemaining} / {demoStatus.aiLimit} 回</strong></div><div className="demo-ai-dots" aria-hidden="true">{Array.from({ length: demoStatus.aiLimit }, (_, index) => <i className={index < demoStatus.aiRemaining ? "active" : ""} key={index} />)}</div><small>{demoStatus.aiRemaining > 0 ? "デモ中のAI生成には利用回数の上限があります" : "デモモードのAI生成上限に達しました。手動作成は引き続き利用できます。"}</small>{demoStatus.aiRemaining === 0 ? <Link href="/create/manual">手動でレシピを作成</Link> : null}</section> : null}
-          <p className="flow-note">AIが情報を整理します。内容は保存前に確認できます。</p>
+          <p className="flow-note">内容は保存前に確認できます。</p>
           <footer className="ai-create-actions floating-action-bar">
             <button className="primary-flow-button" type="submit" disabled={loading || (user?.isDemo && demoStatus.active && demoStatus.aiRemaining === 0) || (mode === "screenshot" && files.length === 0) || (mode === "ai" && !text.trim() && files.length === 0)}>{loading ? "レシピを作成中…" : <>{meta.action} <AppIcon name="arrow" size={18} /></>}</button>
           </footer>

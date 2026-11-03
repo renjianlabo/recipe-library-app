@@ -31,7 +31,6 @@ export function ManualRecipeEntry({ editAiDraft = false }: { editAiDraft?: boole
       initialDraft={draft}
       draftKey={editAiDraft ? "ai-review-edit" : "new-manual"}
       heading={editAiDraft ? "レシピを編集" : "レシピを作成"}
-      description="基本情報から順に、必要な項目を入力しましょう。"
       needsServingsConfirmation={needsServingsConfirmation}
       completionAfterSave
       clearAiSessionOnSave={editAiDraft}

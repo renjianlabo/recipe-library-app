@@ -49,7 +49,7 @@ describe("ImportRecipeFlow primary action", () => {
 
   it("renders one floating action and keeps the existing submit flow", async () => {
     render(<ImportRecipeFlow mode="ai" />);
-    fireEvent.change(screen.getByPlaceholderText("レシピの文章やURLを貼り付けてください"), { target: { value: "テスト入力" } });
+    fireEvent.change(screen.getByPlaceholderText("レシピの文章や動画・サイトのURLを貼り付けてください"), { target: { value: "テスト入力" } });
 
     const actions = screen.getAllByRole("button", { name: /AIでレシピを作成/ });
     expect(actions).toHaveLength(1);
@@ -64,7 +64,7 @@ describe("ImportRecipeFlow primary action", () => {
     let resolveRequest: ((value: typeof response) => void) | undefined;
     api.authenticatedJson.mockReturnValueOnce(new Promise<typeof response>((resolve) => { resolveRequest = resolve; }));
     render(<ImportRecipeFlow mode="ai" />);
-    fireEvent.change(screen.getByPlaceholderText("レシピの文章やURLを貼り付けてください"), { target: { value: "テスト入力" } });
+    fireEvent.change(screen.getByPlaceholderText("レシピの文章や動画・サイトのURLを貼り付けてください"), { target: { value: "テスト入力" } });
     fireEvent.click(screen.getByRole("button", { name: /AIでレシピを作成/ }));
 
     const loadingButton = await screen.findByRole("button", { name: "レシピを作成中…" });

@@ -61,7 +61,7 @@ export function RecipeEditor({
   existingRecipe?: Recipe;
   draftKey: string;
   heading: string;
-  description: string;
+  description?: string;
   warnings?: string[];
   needsServingsConfirmation?: boolean;
   completionAfterSave?: boolean;
@@ -141,7 +141,7 @@ export function RecipeEditor({
     <AuthGate>
       <main className="page-container editor-page manual-content">
         <header className="flow-header"><Link href={closeHref ?? (baseRecipe ? `/recipes/${encodeURIComponent(baseRecipe.id)}` : "/create")} aria-label="編集を閉じる"><AppIcon name="x" size={22} /></Link><h1>{heading}</h1></header>
-        <p className="manual-lead">{description}</p>
+        {description ? <p className="manual-lead">{description}</p> : null}
 
         {warnings.map((warning) => <p className="alert warning" key={warning}>{warning}</p>)}
         {needsServingsConfirmation && draft.servings === null ? (
@@ -165,7 +165,7 @@ export function RecipeEditor({
             onClose={() => void autosave.discardRecoveredDraft()}
           >
               <h2 id="restore-draft-title">端末内の下書きを復元しますか</h2>
-              <p id="restore-draft-description">前回保存前に閉じた編集内容が見つかりました。現在表示中の内容とどちらを使うか選んでください。</p>
+              <p id="restore-draft-description">前回保存前に閉じた編集内容が見つかりました。</p>
               <div className="button-row">
                 <button className="button" type="button" data-modal-initial-focus onClick={() => void autosave.discardRecoveredDraft()}>破棄する</button>
                 <button className="button primary" type="button" onClick={restoreLocalDraft}>復元する</button>
@@ -180,7 +180,7 @@ export function RecipeEditor({
             onClose={() => setConflict(null)}
           >
             <h2 id="recipe-conflict-title">他の端末でこのレシピが更新されています</h2>
-            <p id="recipe-conflict-description">現在の入力は消さずに保持しています。最新内容を読み込むか、自分の内容を別レシピとして保存できます。</p>
+            <p id="recipe-conflict-description">現在の入力は消さずに保持しています。</p>
             <div className="button-row">
               <button className="button" type="button" data-modal-initial-focus onClick={() => setConflict(null)}>キャンセル</button>
               <button className="button secondary" type="button" onClick={() => {

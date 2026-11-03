@@ -531,7 +531,6 @@ export function CookingMode({
               左へスワイプすると次の工程、右へスワイプすると前の工程へ移動します。
             </p>
             <article className={styles.stepCard}>
-              <p className={styles.stepKicker}>STEP {session.currentStepIndex + 1}</p>
               <p className={styles.stepText}>{currentStep.text}</p>
 
               {stepIngredients.length ? (

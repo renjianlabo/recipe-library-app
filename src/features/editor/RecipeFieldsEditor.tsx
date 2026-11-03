@@ -268,13 +268,13 @@ export function RecipeFieldsEditor({ draft, onChange }: {
       </section>
 
       <section className="form-section">
-        <div className="form-section-head"><h2>材料</h2><small>分量は「適量」なども入力できます</small></div>
+        <div className="form-section-head"><h2>材料</h2></div>
         <div className="ingredient-list">{draft.ingredients.map((ingredient, index) => <ItemFields key={ingredient.id} item={ingredient} kind="材料" index={index} canDelete={draft.ingredients.length > 1} onUpdate={(patch) => onChange({ ...draft, ingredients: draft.ingredients.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) })} onDelete={() => removeItem(ingredient.id, "ingredient")} />)}</div>
         <button className="manual-add-button" type="button" onClick={() => onChange({ ...draft, ingredients: [...draft.ingredients, emptyItem("ingredient")] })}>＋ 材料を追加</button>
       </section>
 
       <section className="form-section">
-        <div className="form-section-head"><h2>調味料</h2><small>分量は「少々」なども入力できます</small></div>
+        <div className="form-section-head"><h2>調味料</h2></div>
         <div className="ingredient-list">{seasonings.map((seasoning, index) => <ItemFields key={seasoning.id} item={seasoning} kind="調味料" index={index} canDelete onUpdate={(patch) => onChange({ ...draft, seasonings: seasonings.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) })} onDelete={() => removeItem(seasoning.id, "seasoning")} />)}</div>
         <button className="manual-add-button" type="button" onClick={() => onChange({ ...draft, seasonings: [...seasonings, emptyItem("seasoning")] })}>＋ 調味料を追加</button>
       </section>

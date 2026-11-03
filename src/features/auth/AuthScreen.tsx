@@ -13,7 +13,6 @@ function AuthMark() {
   return (
     <div className="auth-mark">
       <div><AppIcon name="book" size={26} /><span>✦</span></div>
-      <p>MY RECIPE NOTE</p>
     </div>
   );
 }
@@ -124,7 +123,7 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
     return (
       <main className="auth-page">
         <BackHeader title="アカウントを作成" />
-        <div className="auth-screen-lead"><h2>レシピを、いつでも<br />あなたの手元に。</h2><p>アカウントを作成すると、レシピをクラウドに保存できます。</p></div>
+        <div className="auth-screen-lead"><p>アカウントを作成すると、レシピをクラウドに保存できます。</p></div>
         <form className="auth-form" onSubmit={signup}>
           <label>メールアドレス<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="example@gmail.com" autoComplete="email" /></label>
           <label>パスワード<input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="6文字以上" autoComplete="new-password" /></label>
@@ -141,7 +140,6 @@ export function AuthScreen({ mode }: { mode: AuthScreenMode }) {
   return (
     <main className="auth-page login-content">
       <AuthMark />
-      <div className="auth-intro"><h1>自分のレシピを、<br />もっと使いやすく。</h1><p>大切なレシピを、いつでもあなたのそばに。</p></div>
       {!configured ? <p className="auth-config-note">クラウド認証は未設定です。デモモードで全画面を確認できます。</p> : null}
       <form className="auth-form" onSubmit={login}>
         <label>メールアドレス<input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="example@gmail.com" autoComplete="email" /></label>
